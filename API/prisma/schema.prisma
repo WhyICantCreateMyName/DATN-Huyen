@@ -1,0 +1,209 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  USER
+}
+
+model User {
+  id               String            @id @default(uuid())
+  email            String            @unique
+  password         String
+  name             String
+  role             Role              @default(USER)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  
+  carts            Cart[]
+  orders           Order[]
+  sentMessages     Message[]         @relation("SentMessages")
+  receivedMessages Message[]         @relation("ReceivedMessages")
+  purchaseInvoices PurchaseInvoice[] @relation("UserPurchaseInvoices")
+
+  @@map("users")
+}
+
+model Category {
+  id          String    @id @default(uuid())
+  name        String
+  slug        String    @unique
+  description String?   @db.Text
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  products    Product[]
+
+  @@map("categories")
+}
+
+model Product {
+  id          String           @id @default(uuid())
+  name        String
+  description String?          @db.Text
+  images      String           @db.Text // Store as JSON string
+  categoryId  String
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  
+  category    Category         @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  variants    ProductVariant[]
+
+  @@map("products")
+}
+
+model ProductVariant {
+  id                   String                @id @default(uuid())
+  productId            String
+  size                 String
+  color                String
+  price                Decimal               @db.Decimal(18, 2)
+  stock                Int                   @default(0)
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+  
+  product              Product               @relation(fields: [productId], references: [id], onDelete: Cascade)
+  cartItems            CartItem[]
+  orderItems           OrderItem[]
+  purchaseInvoiceItems PurchaseInvoiceItem[]
+
+  @@unique([productId, size, color])
+  @@map("product_variants")
+}
+
+model Cart {
+  id        String     @id @default(uuid())
+  userId    String
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items     CartItem[]
+
+  @@map("carts")
+}
+
+model CartItem {
+  id        String         @id @default(uuid())
+  cartId    String
+  variantId String
+  quantity  Int
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+  
+  cart      Cart           @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  variant   ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+
+  @@map("cart_items")
+}
+
+enum OrderStatus {
+  PENDING
+  PROCESSING
+  DELIVERING
+  DELIVERED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+model Order {
+  id              String        @id @default(uuid())
+  userId          String
+  totalAmount     Decimal       @db.Decimal(18, 2)
+  status          OrderStatus   @default(PENDING)
+  paymentStatus   PaymentStatus @default(PENDING)
+  customerName    String
+  customerPhone   String
+  customerEmail   String?
+  shippingAddress String        @db.Text
+  notes           String?       @db.Text
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime    @updatedAt
+  
+  user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items           OrderItem[]
+
+  @@map("orders")
+}
+
+model OrderItem {
+  id        String         @id @default(uuid())
+  orderId   String
+  variantId String
+  quantity  Int
+  price     Decimal        @db.Decimal(18, 2)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+  
+  order     Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  variant   ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+
+  @@map("order_items")
+}
+
+model Message {
+  id         String   @id @default(uuid())
+  senderId   String
+  receiverId String
+  content    String   @db.Text
+  isRead     Boolean  @default(false)
+  isSent     Boolean  @default(true)
+  readAt     DateTime?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  
+  sender     User     @relation("SentMessages", fields: [senderId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  receiver   User     @relation("ReceivedMessages", fields: [receiverId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@map("messages")
+}
+
+model PurchaseInvoice {
+  id              String                @id @default(uuid())
+  invoiceNumber   String                @unique
+  supplierId      String?
+  supplierName    String
+  supplierPhone   String?
+  supplierAddress String?               @db.Text
+  totalAmount     Decimal               @db.Decimal(18, 2)
+  status          String                @default("PENDING")
+  notes           String?               @db.Text
+  createdBy       String
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+  
+  creator         User                  @relation("UserPurchaseInvoices", fields: [createdBy], references: [id], onDelete: Cascade)
+  items           PurchaseInvoiceItem[]
+
+  @@map("purchase_invoices")
+}
+
+model PurchaseInvoiceItem {
+  id                String          @id @default(uuid())
+  purchaseInvoiceId String
+  variantId         String
+  quantity          Int
+  costPrice         Decimal         @db.Decimal(18, 2)
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  
+  purchaseInvoice   PurchaseInvoice @relation(fields: [purchaseInvoiceId], references: [id], onDelete: Cascade)
+  variant           ProductVariant  @relation(fields: [variantId], references: [id], onDelete: Cascade)
+
+  @@map("purchase_invoice_items")
+}
