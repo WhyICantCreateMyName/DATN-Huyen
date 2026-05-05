@@ -20,6 +20,7 @@ import userController from './controllers/user.controller';
 import customerController from './controllers/customer.controller';
 import adminMessageController from './controllers/admin-message.controller';
 import messageController from './controllers/message.controller';
+import vtoController from './controllers/vto.controller';
 import bannerController from './controllers/banner.controller';
 import paymentController from './controllers/payment.controller';
 import uploadController from './controllers/upload.controller';
@@ -27,21 +28,42 @@ import variantController from './controllers/variant.controller';
 import wishlistController from './controllers/wishlist.controller';
 import reviewController from './controllers/review.controller';
 
-const allowedOrigins = process.env.CORS_ORIGIN 
-    ? process.env.CORS_ORIGIN.split(',') 
+const allowedOrigins = process.env.CORS_ORIGIN
+    ? process.env.CORS_ORIGIN.split(',').map(o => o.trim())
     : ['http://localhost:3000', 'http://localhost:4000'];
 
 const app = express();
+app.set('trust proxy', true);
 const httpServer = createServer(app);
 const io = new SocketIOServer(httpServer, {
     cors: {
-        origin: allowedOrigins,
-        methods: ['GET', 'POST'],
+        origin: (origin, callback) => {
+            if (!origin || allowedOrigins.includes(origin)) {
+                callback(null, true);
+            } else {
+                console.log('❌ Blocked by CORS (Socket):', origin);
+                callback(new Error('Not allowed by CORS'));
+            }
+        },
+        methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+        credentials: true
     },
 });
 
 app.use(cors({
-    origin: allowedOrigins,
+    origin: (origin, callback) => {
+        // Allow requests with no origin (like mobile apps or curl)
+        if (!origin) return callback(null, true);
+        
+        if (allowedOrigins.includes(origin)) {
+            callback(null, true);
+        } else {
+            console.log('❌ Blocked by CORS (Express):', origin);
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin', 'ngrok-skip-browser-warning'],
     credentials: true
 }));
 app.use(express.json());
@@ -55,6 +77,7 @@ app.use('/api/products', productController);
 app.use('/api/cart', cartController);
 app.use('/api/orders', orderController);
 app.use('/api/messages', messageController);
+app.use('/api/vto', vtoController);
 app.use('/api/banners', bannerController);
 app.use('/api/payment', paymentController);
 app.use('/api/upload', uploadController);

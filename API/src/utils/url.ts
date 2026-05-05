@@ -10,7 +10,7 @@ export function toAbsoluteUrls(images: string[], baseUrl: string): string[] {
     if (url.startsWith('http://') || url.startsWith('https://')) {
       return url;
     }
-    
+
     // Convert relative URL to absolute
     const cleanUrl = url.startsWith('/') ? url.substring(1) : url;
     return `${baseUrl}/api/${cleanUrl}`;
@@ -21,14 +21,16 @@ export function toAbsoluteUrls(images: string[], baseUrl: string): string[] {
  * Get base URL from request or environment
  */
 export function getBaseUrl(req?: any): string {
-  if (process.env.BASE_URL) {
-    return process.env.BASE_URL;
-  }
-  
+  // If request is provided, use it to detect URL (useful for ngrok/proxies)
   if (req) {
     return `${req.protocol}://${req.get('host')}`;
   }
-  
+
+  // Fallback to environment variable
+  if (process.env.BASE_URL) {
+    return process.env.BASE_URL;
+  }
+
   return 'http://localhost:5000';
 }
 
