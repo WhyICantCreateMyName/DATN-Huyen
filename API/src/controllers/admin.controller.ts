@@ -1,322 +1,157 @@
-import { Router, Request, Response } from 'express';
+import { Router, Response } from 'express';
 import prisma from '../lib/prisma';
-import { Prisma } from '@prisma/client';
 import { authenticate, AuthRequest, isAdmin } from '../middleware/auth.middleware';
-import { successResponse, errorResponse, ErrorResponses } from '../utils/response';
-import {
-  createPurchaseInvoiceSchema,
-} from '../utils/validations';
-import { getBaseUrl, toAbsoluteUrls } from '../utils/url';
+import { successResponse, ErrorResponses } from '../utils/response';
 
 const router = Router();
 
 // Apply authentication and admin check to all routes
-router.use(authenticate);
-router.use(isAdmin);
+router.use(authenticate, isAdmin);
 
-// ============ STATS ============
-router.get('/stats', async (req: AuthRequest, res: Response) => {
+// ============ DASHBOARD STATISTICS ============
+router.get('/dashboard-stats', async (req: AuthRequest, res: Response) => {
   try {
-    const [totalUsers, totalProducts, totalOrders, revenueData, pendingOrders, processingOrders] = await Promise.all([
-      prisma.user.count(),
-      prisma.product.count(),
-      prisma.order.count(),
+    const now = new Date();
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(now.getDate() - 7);
+
+    const [totalRevenueResult, totalOrders, totalUsers, newUsers, totalReviewsResult, totalReviewsResult2] = await Promise.all([
       prisma.order.aggregate({
-        where: { paymentStatus: 'PAID' },
-        _sum: { totalAmount: true }
+        _sum: { totalAmount: true },
+        where: { status: { not: 'CANCELLED' } }
       }),
-      prisma.order.count({ where: { status: 'PENDING' } }),
-      prisma.order.count({ where: { status: 'PROCESSING' } }),
+      prisma.order.count(),
+      prisma.user.count({ where: { role: 'USER' } }),
+      prisma.user.count({
+        where: {
+          role: 'USER',
+          createdAt: { gte: sevenDaysAgo }
+        }
+      }),
+      prisma.review.aggregate({
+        _count: true,
+        _avg: { rating: true }
+      }),
+      prisma.review.groupBy({
+        by: ['rating'],
+        _count: true
+      })
     ]);
 
-    return successResponse(res, {
-      totalUsers,
-      totalProducts,
-      totalOrders,
-      totalRevenue: Number(revenueData._sum.totalAmount) || 0,
-      pendingOrders,
-      processingOrders,
-    });
-  } catch (error) {
-    console.error('Admin Get stats error:', error);
-    return ErrorResponses.internalError(res);
-  }
-});
+    const totalRevenue = Number(totalRevenueResult._sum.totalAmount || 0);
+    const totalReviews = totalReviewsResult._count;
+    const averageRating = Number((totalReviewsResult._avg.rating || 0).toFixed(1));
 
-// ============ USERS MANAGEMENT ============
-router.get('/users', async (req: AuthRequest, res: Response) => {
-  try {
-    const { page = '1', limit = '10', search = '' } = req.query;
-    const pageNum = parseInt(page as string);
-    const limitNum = parseInt(limit as string);
-
-    const where: any = {};
-    if (search) {
-      where.OR = [
-        { name: { contains: search as string, mode: 'insensitive' } },
-        { email: { contains: search as string, mode: 'insensitive' } },
-      ];
-    }
-
-    const [users, total] = await Promise.all([
-      prisma.user.findMany({
-        where,
-        select: {
-          id: true,
-          email: true,
-          name: true,
-          role: true,
-          createdAt: true,
-        },
-        orderBy: { createdAt: 'desc' },
-        skip: (pageNum - 1) * limitNum,
-        take: limitNum,
-      }),
-      prisma.user.count({ where })
-    ]);
-
-    return successResponse(res, {
-      data: users,
-      pagination: {
-        total,
-        page: pageNum,
-        limit: limitNum,
-        totalPages: Math.ceil(total / limitNum),
-      },
-    });
-  } catch (error) {
-    console.error('Admin Get users error:', error);
-    return ErrorResponses.internalError(res);
-  }
-});
-
-router.put('/users/:id/role', async (req: AuthRequest, res: Response) => {
-  try {
-    const { id } = req.params;
-    const { role } = req.body;
-
-    if (!['USER', 'ADMIN'].includes(role)) {
-      return errorResponse(res, 'Role không hợp lệ', 400);
-    }
-
-    const user = await prisma.user.update({
-      where: { id },
-      data: { role },
-      select: { id: true, email: true, name: true, role: true },
+    const topRatedProductsRaw = await prisma.review.groupBy({
+      by: ['productId'],
+      _avg: { rating: true },
+      _count: { rating: true },
+      orderBy: { _avg: { rating: 'desc' } },
+      take: 5
     });
 
-    return successResponse(res, user);
-  } catch (error) {
-    console.error('Admin Update user role error:', error);
-    return ErrorResponses.internalError(res);
-  }
-});
+    const topRatedProducts = await Promise.all(
+      topRatedProductsRaw.map(async (item) => {
+        const product = await prisma.product.findUnique({
+          where: { id: item.productId },
+          select: { name: true }
+        });
+        return {
+          name: product?.name || 'Sản phẩm ẩn',
+          rating: Number((item._avg.rating || 0).toFixed(1)),
+          count: item._count.rating
+        };
+      })
+    );
 
-// ============ PURCHASE INVOICES (Inventory) ============
-router.get('/purchase-invoices', async (req: AuthRequest, res: Response) => {
-  try {
-    const { page = '1', limit = '10' } = req.query;
-    const pageNum = parseInt(page as string);
-    const limitNum = parseInt(limit as string);
+    const revenueData = [];
+    for (let i = 6; i >= 0; i--) {
+      const date = new Date();
+      date.setDate(now.getDate() - i);
+      const startOfDay = new Date(date.setHours(0, 0, 0, 0));
+      const endOfDay = new Date(date.setHours(23, 59, 59, 999));
 
-    const [invoices, count] = await Promise.all([
-      prisma.purchaseInvoice.findMany({
-        include: {
-          creator: { select: { name: true } },
-          items: {
-            include: {
-              variant: {
-                include: { product: { select: { name: true } } }
-              }
-            }
-          }
-        },
-        orderBy: { createdAt: 'desc' },
-        skip: (pageNum - 1) * limitNum,
-        take: limitNum,
-      }),
-      prisma.purchaseInvoice.count()
-    ]);
-
-    return successResponse(res, {
-      data: invoices,
-      pagination: {
-        total: count,
-        page: pageNum,
-        limit: limitNum,
-        totalPages: Math.ceil(count / limitNum),
-      }
-    });
-  } catch (error) {
-    console.error('Admin Get purchase invoices error:', error);
-    return ErrorResponses.internalError(res);
-  }
-});
-
-router.get('/purchase-invoices/:id', async (req: AuthRequest, res: Response) => {
-  try {
-    const { id } = req.params;
-    const invoice = await prisma.purchaseInvoice.findUnique({
-      where: { id },
-      include: {
-        creator: { select: { name: true, email: true } },
-        items: {
-          include: {
-            variant: {
-              include: {
-                product: {
-                  select: { id: true, name: true, images: true }
-                }
-              }
-            }
+      const dayRevenue = await prisma.order.aggregate({
+        _sum: { totalAmount: true },
+        where: {
+          status: { not: 'CANCELLED' },
+          createdAt: {
+            gte: startOfDay,
+            lte: endOfDay
           }
         }
-      }
-    });
-
-    if (!invoice) {
-      return ErrorResponses.notFound(res, 'Purchase Invoice');
-    }
-
-    const baseUrl = getBaseUrl(req);
-    const invoiceJSON = {
-      ...invoice,
-      items: invoice.items.map((item: any) => ({
-        ...item,
-        variant: {
-          ...item.variant,
-          product: {
-            ...item.variant.product,
-            images: toAbsoluteUrls(JSON.parse(item.variant.product.images), baseUrl),
-          }
-        }
-      }))
-    };
-
-    return successResponse(res, invoiceJSON);
-  } catch (error) {
-    console.error('Admin Get purchase invoice error:', error);
-    return ErrorResponses.internalError(res);
-  }
-});
-
-router.post('/purchase-invoices', async (req: AuthRequest, res: Response) => {
-  try {
-    const validation = createPurchaseInvoiceSchema.safeParse(req.body);
-    if (!validation.success) {
-      return ErrorResponses.validationError(res, validation.error.issues[0].message);
-    }
-
-    const { items, ...invoiceData } = validation.data;
-
-    const existingInvoice = await prisma.purchaseInvoice.findUnique({
-      where: { invoiceNumber: invoiceData.invoiceNumber },
-    });
-
-    if (existingInvoice) {
-      return errorResponse(res, 'Số hóa đơn đã tồn tại', 400);
-    }
-
-    const totalAmount = items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
-
-    const result = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-      const invoice = await tx.purchaseInvoice.create({
-        data: {
-          ...invoiceData,
-          totalAmount,
-          createdBy: req.user!.userId,
-        },
       });
 
-      for (const item of items) {
-        await tx.purchaseInvoiceItem.create({
-          data: {
-            purchaseInvoiceId: invoice.id,
-            variantId: item.variantId,
-            quantity: item.quantity,
-            costPrice: item.unitPrice,
-          },
-        });
+      revenueData.push({
+        name: date.toLocaleDateString('vi-VN', { weekday: 'short' }),
+        revenue: Number(dayRevenue._sum.totalAmount || 0),
+        fullDate: date.toLocaleDateString('vi-VN')
+      });
+    }
 
-        await tx.productVariant.update({
+    const topProducts = await prisma.orderItem.groupBy({
+      by: ['variantId'],
+      _sum: { quantity: true },
+      orderBy: { _sum: { quantity: 'desc' } },
+      take: 5
+    });
+
+    const topProductsDetails = await Promise.all(
+      topProducts.map(async (item) => {
+        const variant = await prisma.productVariant.findUnique({
           where: { id: item.variantId },
-          data: { stock: { increment: item.quantity } },
+          include: { product: { select: { name: true, images: true, category: true } } }
         });
-      }
+        return {
+          id: item.variantId,
+          name: variant?.product.name,
+          category: variant?.product.category?.name,
+          images: variant?.product.images ? JSON.parse(variant.product.images) : [],
+          sales: item._sum.quantity,
+          price: Number(variant?.price || 0)
+        };
+      })
+    );
 
-      return invoice;
+    const recentOrders = await prisma.order.findMany({
+      take: 5,
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        customerName: true,
+        totalAmount: true,
+        status: true,
+        createdAt: true
+      }
     });
 
-    return successResponse(res, result, 201);
+    return successResponse(res, {
+      stats: {
+        totalRevenue,
+        totalOrders,
+        totalUsers,
+        newUsers,
+        totalReviews,
+        averageRating,
+        topRatedProducts,
+        conversionRate: 3.42
+      },
+      revenueData,
+      topProducts: topProductsDetails,
+      recentActivities: recentOrders.map(o => ({
+        id: o.id,
+        user: o.customerName,
+        action: `đã đặt đơn hàng trị giá ${Number(o.totalAmount).toLocaleString('vi-VN')}đ`,
+        time: o.createdAt,
+        type: 'order'
+      }))
+    });
   } catch (error) {
-    console.error('Admin Create purchase invoice error:', error);
+    console.error('Admin Get dashboard stats error:', error);
     return ErrorResponses.internalError(res);
   }
 });
 
-router.put('/purchase-invoices/:id', async (req: AuthRequest, res: Response) => {
-  try {
-    const { id } = req.params;
-    const { supplierName, supplierPhone, supplierAddress, notes, status } = req.body;
-
-    const invoice = await prisma.purchaseInvoice.update({
-      where: { id },
-      data: {
-        supplierName,
-        supplierPhone,
-        supplierAddress,
-        notes,
-        status
-      }
-    });
-
-    return successResponse(res, invoice);
-  } catch (error) {
-    console.error('Admin Update purchase invoice error:', error);
-    return ErrorResponses.internalError(res);
-  }
-});
-
-router.delete('/purchase-invoices/:id', async (req: AuthRequest, res: Response) => {
-  try {
-    const { id } = req.params;
-
-    const result = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-      const invoice = await tx.purchaseInvoice.findUnique({
-        where: { id },
-        include: { items: true }
-      });
-
-      if (!invoice) {
-        throw new Error('NOT_FOUND');
-      }
-
-      if (invoice.status !== 'CANCELLED') {
-        for (const item of invoice.items) {
-          await tx.productVariant.update({
-            where: { id: item.variantId },
-            data: { stock: { decrement: item.quantity } }
-          });
-        }
-      }
-
-      await tx.purchaseInvoiceItem.deleteMany({ where: { purchaseInvoiceId: id } });
-      await tx.purchaseInvoice.delete({ where: { id } });
-
-      return true;
-    });
-
-    return successResponse(res, { message: 'Đã xóa hóa đơn nhập và hoàn tác tồn kho' });
-  } catch (error: any) {
-    if (error.message === 'NOT_FOUND') {
-      return ErrorResponses.notFound(res, 'Purchase Invoice');
-    }
-    console.error('Admin Delete purchase invoice error:', error);
-    return ErrorResponses.internalError(res);
-  }
-});
-
-// ============ ONLINE STATUS ============
 router.get('/online', async (req: AuthRequest, res: Response) => {
   return successResponse(res, { online: true, timestamp: new Date() });
 });

@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import prisma from '../lib/prisma';
-import { Prisma } from '@prisma/client';
+import { Prisma, OrderStatus, PaymentStatus } from '@prisma/client';
 import { authenticate, AuthRequest } from '../middleware/auth.middleware';
 import { successResponse, errorResponse, ErrorResponses } from '../utils/response';
 import { createPaymentUrl, verifyReturnUrl } from '../utils/vnpay';
@@ -51,38 +51,49 @@ router.get('/vnpay/callback', async (req: Request, res: Response) => {
 
     if (responseCode === '00') {
       const result = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-        const order = await tx.order.findUnique({ where: { id: orderId } });
+        const order = await tx.order.findUnique({
+          where: { id: orderId },
+          include: { items: true }
+        });
         if (!order) throw new Error('Order not found');
+
+        if (order.paymentStatus !== PaymentStatus.PENDING) {
+          return order;
+        }
 
         await tx.order.update({
           where: { id: orderId },
-          data: { paymentStatus: 'PAID' }
+          data: {
+            paymentStatus: PaymentStatus.PAID,
+            status: OrderStatus.PROCESSING
+          }
         });
+
+        for (const item of order.items) {
+          await tx.productVariant.update({
+            where: { id: item.variantId },
+            data: { stock: { decrement: item.quantity } }
+          });
+        }
 
         const cart = await tx.cart.findFirst({ where: { userId: order.userId } });
         if (cart) {
-          const cartItems = await tx.cartItem.findMany({ where: { cartId: cart.id } });
-          
-          for (const item of cartItems) {
-            await tx.productVariant.update({
-              where: { id: item.variantId },
-              data: { stock: { decrement: item.quantity } }
-            });
-          }
-
           await tx.cartItem.deleteMany({ where: { cartId: cart.id } });
         }
 
         return order;
       });
 
-      return res.redirect(`/payment/success?orderId=${orderId}`);
+      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:4000';
+      return res.redirect(`${frontendUrl}/payment/success?orderId=${orderId}`);
     } else {
-      return res.redirect(`/payment/failed?reason=payment_failed&code=${responseCode}`);
+      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:4000';
+      return res.redirect(`${frontendUrl}/payment/failed?reason=payment_failed&code=${responseCode}`);
     }
   } catch (error) {
     console.error('VNPay callback error:', error);
-    return res.redirect('/payment/failed?reason=system_error');
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:4000';
+    return res.redirect(`${frontendUrl}/payment/failed?reason=system_error`);
   }
 });
 

@@ -8,17 +8,23 @@ const VNPAY_RETURN_URL = process.env.VNPAY_RETURN_URL || 'http://localhost:5000/
 
 export function sortObject(obj: any): any {
   const sorted: any = {};
-  const keys = Object.keys(obj).sort();
-  keys.forEach((key) => {
-    sorted[key] = obj[key];
-  });
+  const str = [];
+  for (const key in obj) {
+    if (Object.prototype.hasOwnProperty.call(obj, key)) {
+      str.push(encodeURIComponent(key));
+    }
+  }
+  str.sort();
+  for (let key = 0; key < str.length; key++) {
+    sorted[str[key]] = encodeURIComponent(obj[str[key]]).replace(/%20/g, '+');
+  }
   return sorted;
 }
 
 export function createPaymentUrl(orderId: string, amount: number, orderInfo: string, ipAddr: string): string {
   const date = new Date();
   const createDate = date.toISOString().replace(/[-:T.]/g, '').slice(0, 14);
-  
+
   let vnpParams: any = {
     vnp_Version: '2.1.0',
     vnp_Command: 'pay',

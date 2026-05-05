@@ -3,13 +3,27 @@ import { Response } from 'express';
 export interface ApiResponse<T = any> {
     success: boolean;
     data?: T;
+    message?: string;
     error?: string;
 }
 
-export function successResponse<T>(res: Response, data: T, status: number = 200) {
+/**
+ * Gửi phản hồi thành công
+ * @param res Đối tượng Response của Express
+ * @param data Dữ liệu trả về
+ * @param status Mã trạng thái HTTP (mặc định 200)
+ * @param message Thông báo đi kèm (tùy chọn)
+ */
+export function successResponse<T>(
+    res: Response, 
+    data: T, 
+    status: number = 200, 
+    message?: string
+) {
     return res.status(status).json({
         success: true,
         data,
+        message
     } as ApiResponse<T>);
 }
 

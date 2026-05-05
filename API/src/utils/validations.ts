@@ -37,7 +37,7 @@ const variantItemSchema = z.object({
 export const createProductSchema = z.object({
   name: z.string().min(2, 'Tên sản phẩm phải có ít nhất 2 ký tự'),
   description: z.string().optional(),
-  images: z.array(z.string()).min(1, 'Cần ít nhất 1 hình ảnh'),
+  images: z.array(z.string()).optional().default([]),
   categoryId: z.string().uuid('Category ID không hợp lệ'),
   variants: z.array(variantItemSchema).min(1, 'Cần ít nhất 1 biến thể').optional(),
 });
@@ -45,7 +45,7 @@ export const createProductSchema = z.object({
 export const updateProductSchema = z.object({
   name: z.string().min(2).optional(),
   description: z.string().optional(),
-  images: z.array(z.string()).min(1).optional(),
+  images: z.array(z.string()).optional(),
   categoryId: z.string().uuid().optional(),
   variants: z.array(variantItemSchema).optional(),
 });
@@ -111,7 +111,7 @@ export const createPurchaseInvoiceSchema = z.object({
   items: z.array(z.object({
     variantId: z.string().uuid('Variant ID không hợp lệ'),
     quantity: z.number().int().positive('Số lượng phải lớn hơn 0'),
-    unitPrice: z.number().positive('Giá nhập phải lớn hơn 0'),
+    costPrice: z.number().positive('Giá nhập phải lớn hơn 0'),
   })).min(1, 'Cần ít nhất 1 sản phẩm'),
 });
 

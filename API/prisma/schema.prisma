@@ -20,6 +20,8 @@ model User {
   email            String            @unique
   password         String
   name             String
+  phone            String?
+  address          String?           @db.Text
   role             Role              @default(USER)
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
@@ -29,6 +31,8 @@ model User {
   sentMessages     Message[]         @relation("SentMessages")
   receivedMessages Message[]         @relation("ReceivedMessages")
   purchaseInvoices PurchaseInvoice[] @relation("UserPurchaseInvoices")
+  reviews          Review[]
+  wishlist         Wishlist[]
 
   @@map("users")
 }
@@ -57,8 +61,23 @@ model Product {
   
   category    Category         @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   variants    ProductVariant[]
+  reviews     Review[]
+  wishlists   Wishlist[]
 
   @@map("products")
+}
+
+model Wishlist {
+  id        String   @id @default(uuid())
+  userId    String
+  productId String
+  createdAt DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productId])
+  @@map("wishlists")
 }
 
 model ProductVariant {
@@ -132,6 +151,7 @@ model Order {
   customerEmail   String?
   shippingAddress String        @db.Text
   notes           String?       @db.Text
+  paymentMethod   String        @default("COD")
   createdAt       DateTime      @default(now())
   updatedAt       DateTime    @updatedAt
   
@@ -156,19 +176,25 @@ model OrderItem {
   @@map("order_items")
 }
 
+enum MessageSenderType {
+  USER
+  ADMIN
+  BOT
+}
+
 model Message {
-  id         String   @id @default(uuid())
+  id         String            @id @default(uuid())
   senderId   String
   receiverId String
-  content    String   @db.Text
-  isRead     Boolean  @default(false)
-  isSent     Boolean  @default(true)
+  content    String            @db.Text
+  senderType MessageSenderType @default(USER)
+  isRead     Boolean           @default(false)
+  isSent     Boolean           @default(true)
   readAt     DateTime?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  createdAt  DateTime          @default(now())
   
-  sender     User     @relation("SentMessages", fields: [senderId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  receiver   User     @relation("ReceivedMessages", fields: [receiverId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  sender     User              @relation("SentMessages", fields: [senderId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  receiver   User              @relation("ReceivedMessages", fields: [receiverId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@map("messages")
 }
@@ -206,4 +232,29 @@ model PurchaseInvoiceItem {
   variant           ProductVariant  @relation(fields: [variantId], references: [id], onDelete: Cascade)
 
   @@map("purchase_invoice_items")
+}
+model BannerSlider {
+  id              String   @id @default(uuid())
+  name            String   @default("Main Slider")
+  items           Json     // Store up to 10 banners as an array of objects
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("banner_sliders")
+}
+
+model Review {
+  id        String   @id @default(uuid())
+  productId String
+  userId    String
+  rating    Int      @default(5)
+  comment   String?  @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("reviews")
 }

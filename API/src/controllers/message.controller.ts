@@ -17,10 +17,27 @@ function createProductContext(products: any[], baseUrl: string): string {
     return "KHÔNG TÌM THẤY SẢN PHẨM PHÙ HỢP. Hãy xin lỗi khách hàng và gợi ý họ thử tìm kiếm với tiêu chí khác.";
   }
 
-  let context = "📦 SẢN PHẨM PHÙ HỢP:\n";
+  let context = "SẢN PHẨM PHÙ HỢP:\n";
   products.forEach((p, idx) => {
-    const productUrl = `${baseUrl}/products/${p.id}`;
+    const productUrl = `${baseUrl.replace('/api', '')}/products/${p.id}`;
+
+    let imageUrl = '';
+    try {
+      const images = typeof p.images === 'string' ? JSON.parse(p.images) : p.images;
+      if (Array.isArray(images) && images.length > 0) {
+        const firstImg = images[0];
+        if (firstImg.startsWith('http')) {
+          imageUrl = firstImg;
+        } else {
+          imageUrl = `${baseUrl}/uploads/${firstImg}`;
+        }
+      }
+    } catch (e) { }
+
     context += `\n${idx + 1}. **[${p.name}](${productUrl})**\n`;
+    if (imageUrl) {
+      context += `   ![IMG](${imageUrl})\n`;
+    }
 
     if (p.variants && p.variants.length > 0) {
       const prices = p.variants.map((v: any) => parseFloat(v.price));
@@ -43,38 +60,71 @@ function createProductContext(products: any[], baseUrl: string): string {
       context += `   - Mô tả: ${p.description.substring(0, 200)}...\n`;
     }
 
-    context += `   ⚠️ LINK XEM CHI TIẾT (BẮT BUỘC PHẢI DÙNG ĐÚNG URL NÀY): ${productUrl}\n`;
+    context += `   LINK XEM CHI TIẾT: ${productUrl}\n`;
   });
 
   return context;
 }
 
+const SHOP_ID = 'cb691d24-0bc0-4831-bd01-66d2cbb6c3d1';
+
+// GET /api/messages - Get current user's chat history with shop
+router.get('/', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.userId;
+    if (!userId) return ErrorResponses.unauthorized(res);
+
+    const messages = await prisma.message.findMany({
+      where: {
+        OR: [
+          { senderId: userId, receiverId: SHOP_ID },
+          { senderId: SHOP_ID, receiverId: userId }
+        ]
+      },
+      orderBy: { createdAt: 'asc' }
+    });
+
+    return successResponse(res, messages);
+  } catch (error) {
+    console.error('Get chat history error:', error);
+    return ErrorResponses.internalError(res);
+  }
+});
+
 // POST /api/messages - Chat with AI (Integrated from legacy bot)
 router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
   try {
     const { content, conversationHistory } = req.body;
+    const userId = req.user!.userId;
+    const SHOP_ID = 'cb691d24-0bc0-4831-bd01-66d2cbb6c3d1';
 
     if (!content) {
       return ErrorResponses.badRequest(res, 'Nội dung tin nhắn không được để trống');
     }
 
-    // 1. Analyze intent & budget
+    await prisma.message.create({
+      data: {
+        senderId: userId,
+        receiverId: SHOP_ID,
+        content,
+        senderType: 'USER',
+        isRead: true
+      }
+    });
+
     const intent = analyzeIntent(content);
     const budget = extractBudget(content);
 
-    // 2. Fetch relevant products if needed
     let relevantProducts: any[] = [];
     if (intent.type === 'product_search' || intent.type === 'compare') {
       const searchResults = await QdrantService.searchProducts(content, 10);
 
-      // Fetch full product data from Prisma to ensure fresh data
       const productIds = searchResults.map((r: any) => r.id);
       let productsFromDb = await prisma.product.findMany({
         where: { id: { in: productIds } },
         include: { category: true, variants: true }
       });
 
-      // Filter by budget if specified
       if (budget.min !== null || budget.max !== null) {
         productsFromDb = productsFromDb.filter((p: any) => {
           const prices = p.variants.map((v: any) => parseFloat(v.price.toString()));
@@ -89,7 +139,6 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
       relevantProducts = productsFromDb.slice(0, 5);
     }
 
-    // 3. Build context & generate response
     const systemPrompt = AiService.getSystemPrompt();
     const productContext = createProductContext(relevantProducts, getBaseUrl(req));
 
@@ -107,13 +156,35 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
 
     const aiResponse = await AiService.generateResponse(fullPrompt);
 
-    // 4. Return result matching legacy response format
+    const botMessage = await prisma.message.create({
+      data: {
+        senderId: SHOP_ID,
+        receiverId: userId,
+        content: aiResponse,
+        senderType: 'BOT',
+        isRead: false
+      }
+    });
+
+    const { io } = require('../server');
+    if (io) {
+      io.to(`user:${userId}`).emit('message', botMessage);
+    }
+
     return successResponse(res, {
       response: aiResponse,
-      products: relevantProducts.slice(0, 3).map(p => ({
-        ...p,
-        images: JSON.parse(p.images)
-      })),
+      products: relevantProducts.slice(0, 3).map(p => {
+        let parsedImages = [];
+        try {
+          parsedImages = typeof p.images === 'string' ? JSON.parse(p.images) : p.images;
+        } catch (e) {
+          console.error(`Error parsing images for product ${p.id}:`, e);
+        }
+        return {
+          ...p,
+          images: parsedImages
+        };
+      }),
       intent: intent,
       requires_human: intent.requires_human
     });

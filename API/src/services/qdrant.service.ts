@@ -12,18 +12,31 @@ export class QdrantService {
   private static client = new QdrantClient({ url: QDRANT_URL });
 
   /**
-   * Initialize collection if it doesn't exist
+   * Initialize collection if it doesn't exist or has wrong dimensions
    */
   static async initCollection() {
     try {
       const collections = await this.client.getCollections();
-      const exists = collections.collections.some((c) => c.name === COLLECTION_NAME);
+      const collectionInfo = collections.collections.find((c) => c.name === COLLECTION_NAME);
+      
+      const NEW_VECTOR_SIZE = 3072; // gemini-embedding-2 dimension
 
-      if (!exists) {
+      if (collectionInfo) {
+        // Check current dimension
+        const detail = await this.client.getCollection(COLLECTION_NAME);
+        const currentSize = (detail.config?.params?.vectors as any)?.size;
+        
+        if (currentSize !== NEW_VECTOR_SIZE) {
+          console.log(`⚠️ Dimension mismatch (${currentSize} vs ${NEW_VECTOR_SIZE}). Recreating collection...`);
+          await this.client.deleteCollection(COLLECTION_NAME);
+          await this.client.createCollection(COLLECTION_NAME, {
+            vectors: { size: NEW_VECTOR_SIZE, distance: 'Cosine' },
+          });
+        }
+      } else {
         console.log(`Creating Qdrant collection: ${COLLECTION_NAME}`);
-        // Gemini text-embedding-004 has 768 dimensions
         await this.client.createCollection(COLLECTION_NAME, {
-          vectors: { size: 768, distance: 'Cosine' },
+          vectors: { size: NEW_VECTOR_SIZE, distance: 'Cosine' },
         });
       }
     } catch (error) {
@@ -36,7 +49,7 @@ export class QdrantService {
    */
   private static createProductText(product: any): string {
     const parts = [];
-    if (product.name) parts.push(`Tên: ${product.name}`);
+    if (product.name) parts.push(`Tên sản phẩm: ${product.name}`);
     if (product.category?.name) parts.push(`Danh mục: ${product.category.name}`);
     if (product.description) parts.push(`Mô tả: ${product.description}`);
     
@@ -47,14 +60,17 @@ export class QdrantService {
       if (minPrice === maxPrice) {
         parts.push(`Giá: ${minPrice.toLocaleString('vi-VN')}đ`);
       } else {
-        parts.push(`Giá: ${minPrice.toLocaleString('vi-VN')}đ - ${maxPrice.toLocaleString('vi-VN')}đ`);
+        parts.push(`Giá dao động: ${minPrice.toLocaleString('vi-VN')}đ - ${maxPrice.toLocaleString('vi-VN')}đ`);
       }
 
       const sizes = [...new Set(product.variants.map((v: any) => v.size))];
-      parts.push(`Size: ${sizes.join(', ')}`);
+      parts.push(`Size có sẵn: ${sizes.join(', ')}`);
 
       const colors = [...new Set(product.variants.map((v: any) => v.color))];
-      parts.push(`Màu: ${colors.join(', ')}`);
+      parts.push(`Màu sắc: ${colors.join(', ')}`);
+      
+      const totalStock = product.variants.reduce((sum: number, v: any) => sum + v.stock, 0);
+      parts.push(`Trạng thái: ${totalStock > 0 ? 'Còn hàng' : 'Hết hàng'}`);
     }
 
     return parts.join(' | ');
@@ -63,18 +79,31 @@ export class QdrantService {
   /**
    * Index all products into Qdrant
    */
-  static async indexAllProducts() {
+  static async indexAllProducts(force: boolean = false) {
     try {
       await this.initCollection();
 
-      const products = await prisma.product.findMany({
-        include: {
-          category: true,
-          variants: true,
-        },
-      });
+      // 1. Check current count in Qdrant vs Database
+      const [products, collectionDetail] = await Promise.all([
+        prisma.product.findMany({
+          include: { category: true, variants: true },
+        }),
+        this.client.getCollection(COLLECTION_NAME)
+      ]);
 
-      console.log(`Indexing ${products.length} products into Qdrant...`);
+      const currentCount = collectionDetail.points_count || 0;
+      
+      if (!force && products.length > 0 && currentCount === products.length) {
+        console.log(`ℹ️ Qdrant already has ${currentCount} products indexed. Skipping re-indexing...`);
+        return;
+      }
+
+      if (products.length === 0) {
+        console.log('No products found to index.');
+        return;
+      }
+
+      console.log(`🚀 Indexing ${products.length} products into Qdrant (Force: ${force})...`);
 
       const points = [];
       for (const product of products) {
@@ -90,6 +119,9 @@ export class QdrantService {
             description: product.description,
             categoryId: product.categoryId,
             categoryName: product.category?.name,
+            images: product.images,
+            minPrice: product.variants.length > 0 ? Math.min(...product.variants.map((v: any) => parseFloat(v.price))) : 0,
+            maxPrice: product.variants.length > 0 ? Math.max(...product.variants.map((v: any) => parseFloat(v.price))) : 0,
           },
         });
       }
@@ -103,7 +135,7 @@ export class QdrantService {
 
       console.log('✅ Qdrant indexing complete.');
     } catch (error) {
-      console.error('Qdrant Indexing Error:', error);
+      console.error('❌ Qdrant Indexing Error:', error);
       throw error;
     }
   }

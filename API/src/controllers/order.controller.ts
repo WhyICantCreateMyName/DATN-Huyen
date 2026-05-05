@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import prisma from '../lib/prisma';
-import { Prisma } from '@prisma/client';
+import { Prisma, OrderStatus, PaymentStatus } from '@prisma/client';
 import { authenticate, AuthRequest, isAdmin } from '../middleware/auth.middleware';
 import { successResponse, errorResponse, ErrorResponses } from '../utils/response';
 import { createOrderSchema, updateOrderStatusSchema, updatePaymentStatusSchema } from '../utils/validations';
@@ -9,8 +9,6 @@ const router = Router();
 
 // Apply authentication to all order routes
 router.use(authenticate);
-
-// ============ USER ENDPOINTS ============
 
 // POST /api/orders - Create Order
 router.post('/', async (req: AuthRequest, res: Response) => {
@@ -22,13 +20,15 @@ router.post('/', async (req: AuthRequest, res: Response) => {
       return ErrorResponses.validationError(res, validation.error.issues[0].message);
     }
 
-    const { 
+    console.log("Create order data received:", validation.data);
+
+    const {
       customerName,
       customerPhone,
       customerEmail,
       shippingAddress,
       notes,
-      paymentMethod = 'COD' 
+      paymentMethod = 'COD'
     } = validation.data;
 
     const cart = await prisma.cart.findFirst({
@@ -72,12 +72,12 @@ router.post('/', async (req: AuthRequest, res: Response) => {
           customerEmail,
           shippingAddress,
           notes,
-          status: 'PENDING',
-          paymentStatus: 'PENDING',
+          paymentMethod,
+          status: OrderStatus.PENDING,
+          paymentStatus: PaymentStatus.PENDING,
         }
       });
 
-      // 2. Create Order Items
       for (const item of cart.items) {
         await tx.orderItem.create({
           data: {
@@ -88,7 +88,6 @@ router.post('/', async (req: AuthRequest, res: Response) => {
           }
         });
 
-        // 3. Decrement stock if COD
         if (paymentMethod === 'COD') {
           await tx.productVariant.update({
             where: { id: item.variantId },
@@ -97,7 +96,6 @@ router.post('/', async (req: AuthRequest, res: Response) => {
         }
       }
 
-      // 4. Clear cart if COD
       if (paymentMethod === 'COD') {
         await tx.cartItem.deleteMany({
           where: { cartId: cart.id }
@@ -107,7 +105,7 @@ router.post('/', async (req: AuthRequest, res: Response) => {
       return order;
     });
 
-    return successResponse(res, result, 201);
+    return successResponse(res, { order: result }, 201);
   } catch (error) {
     console.error('Create order error:', error);
     return ErrorResponses.internalError(res);
@@ -258,8 +256,8 @@ router.get('/admin/list', isAdmin, async (req: AuthRequest, res: Response) => {
       items: order.items.map((item: any) => {
         let images = [];
         try {
-          images = typeof item.variant.product.images === 'string' 
-            ? JSON.parse(item.variant.product.images) 
+          images = typeof item.variant.product.images === 'string'
+            ? JSON.parse(item.variant.product.images)
             : item.variant.product.images;
         } catch (e) {
           images = [];

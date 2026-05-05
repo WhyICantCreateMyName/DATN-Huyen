@@ -1,10 +1,11 @@
 import { Router, Request, Response } from 'express';
 import bcrypt from 'bcrypt';
 import prisma from '../lib/prisma';
-import { signToken, signRefreshToken, verifyRefreshToken } from '../utils/jwt';
+import { signToken, signRefreshToken, verifyRefreshToken, signResetToken, verifyResetToken } from '../utils/jwt';
 import { successResponse, errorResponse, ErrorResponses } from '../utils/response';
 import { loginSchema, registerSchema } from '../utils/validations';
 import { authenticate, AuthRequest } from '../middleware/auth.middleware';
+import { sendResetPasswordEmail } from '../utils/mail';
 
 const router = Router();
 
@@ -77,6 +78,7 @@ router.post('/login', async (req: Request, res: Response) => {
       userId: user.id,
       email: user.email,
       role: user.role,
+      name: user.name,
     };
 
     const token = signToken(tokenPayload);
@@ -94,9 +96,55 @@ router.post('/login', async (req: Request, res: Response) => {
 // GET /api/auth/me
 router.get('/me', authenticate, async (req: AuthRequest, res: Response) => {
   try {
-    return successResponse(res, req.user);
+    const userId = req.user?.userId;
+    if (!userId) return ErrorResponses.unauthorized(res);
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        phone: true,
+        address: true,
+        role: true,
+        createdAt: true,
+        updatedAt: true,
+      }
+    });
+
+    if (!user) {
+      return ErrorResponses.notFound(res, 'User');
+    }
+
+    return successResponse(res, user);
   } catch (error) {
     console.error('Get profile error:', error);
+    return ErrorResponses.internalError(res);
+  }
+});
+
+// PATCH /api/auth/profile
+router.patch('/profile', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const { name, phone, address } = req.body;
+    const userId = req.user?.userId;
+
+    if (!userId) return ErrorResponses.unauthorized(res);
+
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: {
+        ...(name && { name }),
+        ...(phone !== undefined && { phone }),
+        ...(address !== undefined && { address }),
+      },
+    });
+
+    const { password: _, ...userWithoutPassword } = updatedUser;
+    return successResponse(res, userWithoutPassword, 200, 'Cập nhật thông tin thành công');
+  } catch (error) {
+    console.error('Update profile error:', error);
     return ErrorResponses.internalError(res);
   }
 });
@@ -124,6 +172,7 @@ router.post('/refresh', async (req: Request, res: Response) => {
       userId: user.id,
       email: user.email,
       role: user.role,
+      name: user.name,
     };
 
     const newToken = signToken(tokenPayload);
@@ -132,6 +181,54 @@ router.post('/refresh', async (req: Request, res: Response) => {
     return successResponse(res, { token: newToken, refreshToken: newRefreshToken });
   } catch (error) {
     console.error('Refresh token error:', error);
+    return ErrorResponses.internalError(res);
+  }
+});
+
+// POST /api/auth/forgot-password
+router.post('/forgot-password', async (req: Request, res: Response) => {
+  try {
+    const { email } = req.body;
+    if (!email) return errorResponse(res, 'Email là bắt buộc', 400);
+
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) {
+      // For security, don't reveal if user exists.
+      return successResponse(res, null, 200, 'Nếu email tồn tại, link reset đã được gửi.');
+    }
+
+    const resetToken = signResetToken({ userId: user.id });
+    const resetLink = `${process.env.CLIENT_URL || 'http://localhost:3000'}/reset-password?token=${resetToken}`;
+
+    await sendResetPasswordEmail(email, resetLink);
+
+    return successResponse(res, null, 200, 'Link reset mật khẩu đã được gửi qua email.');
+  } catch (error) {
+    console.error('Forgot password error:', error);
+    return ErrorResponses.internalError(res);
+  }
+});
+
+// POST /api/auth/reset-password
+router.post('/reset-password', async (req: Request, res: Response) => {
+  try {
+    const { token, password } = req.body;
+    if (!token || !password) return errorResponse(res, 'Token và mật khẩu là bắt buộc', 400);
+
+    const payload = verifyResetToken(token);
+    if (!payload) {
+      return errorResponse(res, 'Token không hợp lệ hoặc đã hết hạn', 401);
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    await prisma.user.update({
+      where: { id: payload.userId },
+      data: { password: hashedPassword }
+    });
+
+    return successResponse(res, null, 200, 'Mật khẩu đã được cập nhật thành công.');
+  } catch (error) {
+    console.error('Reset password error:', error);
     return ErrorResponses.internalError(res);
   }
 });

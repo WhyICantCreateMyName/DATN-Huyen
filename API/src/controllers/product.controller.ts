@@ -23,6 +23,7 @@ router.get('/', async (req: Request, res: Response) => {
     if (search && typeof search === 'string') {
       where.name = {
         contains: search,
+        mode: 'insensitive'
       };
     }
 
@@ -36,6 +37,9 @@ router.get('/', async (req: Request, res: Response) => {
           },
           variants: {
             select: { id: true, size: true, color: true, price: true, stock: true }
+          },
+          reviews: {
+            select: { rating: true }
           }
         },
         orderBy: { createdAt: 'desc' },
@@ -45,10 +49,20 @@ router.get('/', async (req: Request, res: Response) => {
     ]);
 
     const baseUrl = getBaseUrl(req);
-    const productsWithParsedImages = products.map((p: any) => ({
-      ...p,
-      images: toAbsoluteUrls(JSON.parse(p.images), baseUrl),
-    }));
+    const productsWithParsedImages = products.map((p: any) => {
+      const reviewCount = p.reviews.length;
+      const averageRating = reviewCount > 0 
+        ? p.reviews.reduce((acc: number, r: any) => acc + r.rating, 0) / reviewCount 
+        : 0;
+
+      return {
+        ...p,
+        images: toAbsoluteUrls(JSON.parse(p.images), baseUrl),
+        reviewCount,
+        averageRating: Number(averageRating.toFixed(1)),
+        reviews: undefined // Don't send full reviews in list
+      };
+    });
 
     return successResponse(res, {
       data: productsWithParsedImages,
@@ -78,6 +92,18 @@ router.get('/:id', async (req: Request, res: Response) => {
         },
         variants: {
           select: { id: true, size: true, color: true, price: true, stock: true }
+        },
+        reviews: {
+          take: 5, // Only get 5 latest reviews
+          include: {
+            user: {
+              select: { id: true, name: true }
+            }
+          },
+          orderBy: { createdAt: 'desc' }
+        },
+        _count: {
+          select: { reviews: true }
         }
       },
     });
@@ -86,10 +112,32 @@ router.get('/:id', async (req: Request, res: Response) => {
       return ErrorResponses.notFound(res, 'Product');
     }
 
+    // Group reviews by rating for the chart
+    const ratingStats = await prisma.review.groupBy({
+      by: ['rating'],
+      where: { productId: id },
+      _count: true
+    });
+
+    // Initialize distribution with 0 for all stars
+    const ratingDistribution: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+    let totalScore = 0;
+    ratingStats.forEach(stat => {
+      ratingDistribution[stat.rating] = stat._count;
+      totalScore += stat.rating * stat._count;
+    });
+
+    const reviewCount = product._count.reviews;
+    const averageRating = reviewCount > 0 ? totalScore / reviewCount : 0;
+
     const baseUrl = getBaseUrl(req);
     const productWithParsedImages = {
       ...product,
       images: toAbsoluteUrls(JSON.parse(product.images), baseUrl),
+      reviewCount,
+      averageRating: Number(averageRating.toFixed(1)),
+      ratingDistribution,
+      _count: undefined // Remove internal count object
     };
 
     return successResponse(res, productWithParsedImages);

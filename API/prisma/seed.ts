@@ -6,10 +6,26 @@ const prisma = new PrismaClient();
 type OrderStatus = "PENDING" | "PROCESSING" | "DELIVERING" | "DELIVERED" | "CANCELLED";
 type PaymentStatus = "PENDING" | "PAID" | "FAILED" | "REFUNDED";
 
+const reviewComments = [
+  "Sản phẩm tuyệt vời, chất vải rất đẹp và mịn!",
+  "Giao hàng cực nhanh, đóng gói cẩn thận chuyên nghiệp.",
+  "Mặc rất vừa vặn, tôn dáng và sang trọng lắm.",
+  "Màu sắc hơi khác so với ảnh một chút nhưng vẫn rất ưng ý.",
+  "Đáng đồng tiền bát gạo, chắc chắn sẽ ủng hộ shop tiếp.",
+  "Chất lượng ổn, đường may sắc sảo, phù hợp giá tiền.",
+  "Váy đẹp lắm shop ơi, mặc đi tiệc ai cũng khen.",
+  "Shop tư vấn nhiệt tình, size chuẩn, 5 sao nhé!",
+  "Vải mát, không bị nhăn sau khi giặt, rất hài lòng.",
+  "Phong cách rất hiện đại, đúng gu mình tìm bấy lâu.",
+  "Hàng y hình, chất lượng vượt mong đợi.",
+  "Dịch vụ chăm sóc khách hàng của shop quá tốt."
+];
+
 async function main() {
-  console.log('🌱 Bắt đầu khởi tạo dữ liệu mẫu cho Yuki Fashion Store...');
+  console.log('🌱 Bắt đầu khởi tạo dữ liệu mẫu toàn diện cho Yuki Fashion Store...');
 
   console.log('🗑️  Đang dọn dẹp Database...');
+  await prisma.review.deleteMany();
   await prisma.message.deleteMany();
   await prisma.orderItem.deleteMany();
   await prisma.order.deleteMany();
@@ -25,7 +41,7 @@ async function main() {
   console.log('👤 Đang tạo tài khoản mẫu...');
   const hashedPassword = await bcrypt.hash('123456', 10);
 
-  await prisma.user.create({
+  const admin = await prisma.user.create({
     data: {
       email: 'admin@gmail.com',
       password: hashedPassword,
@@ -42,6 +58,23 @@ async function main() {
       role: 'USER',
     },
   });
+
+  // Create 20 more random users for dashboard variety
+  const additionalUsers = [];
+  for (let i = 1; i <= 20; i++) {
+    const user = await prisma.user.create({
+      data: {
+        email: `customer${i}@example.com`,
+        password: hashedPassword,
+        name: `Khách hàng #${i}`,
+        role: 'USER',
+        phone: `090${Math.floor(Math.random() * 10000000).toString().padStart(7, '0')}`,
+        address: `${Math.floor(Math.random() * 500)} Đường Lê Lợi, TP.HCM`
+      }
+    });
+    additionalUsers.push(user);
+  }
+  const allCustomers = [testUser, ...additionalUsers];
 
   console.log('📁 Đang tạo danh mục sản phẩm...');
   const categoriesData = [
@@ -83,31 +116,8 @@ async function main() {
     'https://images.unsplash.com/photo-1515347669655-b0f68ac3d366'
   ];
 
-  function generateRealDescription(name: string, catName: string) {
-    return `
-### 🌟 ĐẶC ĐIỂM NỔI BẬT: ${name}
-Sản phẩm thuộc bộ sưu tập mới nhất của **Yuki Fashion**, tập trung vào sự thoải mái và phong cách tối giản nhưng sang trọng.
-
-### 🧵 CHI TIẾT CHẤT LIỆU
-- **Thành phần**: 95% Cotton tự nhiên, 5% Spandex giúp co giãn linh hoạt.
-- **Công nghệ**: Xử lý bề mặt vải chống xù lông, giữ màu bền bỉ sau nhiều lần giặt.
-- **Đặc tính**: Thấm hút mồ hôi cực tốt, phù hợp cho cả đi làm lẫn dạo phố.
-
-### 📐 HƯỚNG DẪN CHỌN SIZE
-Dựa trên chiều cao và cân nặng tiêu chuẩn của người Việt:
-- **Size S**: 48 - 55kg | 1m55 - 1m62
-- **Size M**: 56 - 65kg | 1m63 - 1m70
-- **Size L**: 66 - 75kg | 1m71 - 1m78
-- **Size XL**: 76 - 85kg | 1m79 - 1m85
-
-### 🧼 HƯỚNG DẪN BẢO QUẢN
-1. Giặt máy ở chế độ nhẹ, nhiệt độ nước bình thường.
-2. Không sử dụng thuốc tẩy mạnh.
-3. Phơi nơi thoáng mát, tránh ánh nắng trực tiếp để bảo vệ sợi vải.
-    `.trim();
-  }
-
   console.log('🔨 Đang tạo 50 sản phẩm chất lượng cao...');
+  const createdProducts = [];
   for (let i = 1; i <= 50; i++) {
     const cat = categories[i % categories.length];
     const baseNames = productNames[cat.slug as keyof typeof productNames] || ['Sản phẩm thời trang'];
@@ -122,10 +132,10 @@ Dựa trên chiều cao và cân nặng tiêu chuẩn của người Việt:
       images.push(fashionImages[Math.floor(Math.random() * fashionImages.length)]);
     }
 
-    await prisma.product.create({
+    const product = await prisma.product.create({
       data: {
         name: finalName,
-        description: generateRealDescription(finalName, cat.name),
+        description: `### 🌟 ĐẶC ĐIỂM NỔI BẬT: ${finalName}\nSản phẩm cao cấp của Yuki Fashion.`,
         images: JSON.stringify(images),
         categoryId: cat.id,
         variants: {
@@ -136,63 +146,93 @@ Dựa trên chiều cao và cân nặng tiêu chuẩn của người Việt:
             stock: Math.floor(Math.random() * 50) + 10
           }))
         }
-      }
+      },
+      include: { variants: true }
     });
+    createdProducts.push(product);
 
     if (i % 10 === 0) console.log(`   ✅ Đã tạo xong ${i}/50 sản phẩm...`);
   }
 
-  await prisma.cart.create({
-    data: { userId: testUser.id }
-  });
+  console.log('⭐ Đang tạo 200 đánh giá khách hàng...');
+  const reviewsData = [];
+  for (let i = 0; i < 200; i++) {
+    const randomProduct = createdProducts[Math.floor(Math.random() * createdProducts.length)];
+    const randomUser = allCustomers[Math.floor(Math.random() * allCustomers.length)];
 
-  console.log('📦 Đang tạo đơn hàng mẫu...');
-  const allVariants = await prisma.productVariant.findMany({
-    include: { product: true },
-    take: 20
-  });
+    const rand = Math.random();
+    let rating = 5;
+    if (rand < 0.1) rating = 3;
+    else if (rand < 0.3) rating = 4;
+    else rating = 5;
 
+    reviewsData.push({
+      productId: randomProduct.id,
+      userId: randomUser.id,
+      rating: rating,
+      comment: reviewComments[Math.floor(Math.random() * reviewComments.length)],
+      createdAt: new Date(Date.now() - Math.floor(Math.random() * 30 * 24 * 60 * 60 * 1000)),
+    });
+  }
+  await prisma.review.createMany({ data: reviewsData });
+
+  console.log('📦 Đang tạo 100 đơn hàng lịch sử (Dashboard)...');
   const orderStatuses: OrderStatus[] = ["PENDING", "PROCESSING", "DELIVERING", "DELIVERED", "CANCELLED"];
   const paymentStatuses: PaymentStatus[] = ["PENDING", "PAID", "FAILED", "REFUNDED"];
+  const now = new Date();
 
-  for (let i = 1; i <= 10; i++) {
+  for (let i = 1; i <= 100; i++) {
+    const randomUser = allCustomers[Math.floor(Math.random() * allCustomers.length)];
+    const randomDate = new Date();
+    randomDate.setDate(now.getDate() - Math.floor(Math.random() * 30));
+
     const status = orderStatuses[Math.floor(Math.random() * orderStatuses.length)];
     const paymentStatus = paymentStatuses[Math.floor(Math.random() * paymentStatuses.length)];
-    
-    const randomItemsCount = Math.floor(Math.random() * 3) + 1;
-    const selectedVariants = allVariants.sort(() => 0.5 - Math.random()).slice(0, randomItemsCount);
-    
-    let totalAmount = 0;
-    const orderItemsData = selectedVariants.map(v => {
-      const qty = Math.floor(Math.random() * 2) + 1;
-      const price = Number(v.price);
-      totalAmount += price * qty;
-      return {
-        variantId: v.id,
-        quantity: qty,
-        price: price
-      };
-    });
+
+    const randomProduct = createdProducts[Math.floor(Math.random() * createdProducts.length)];
+    const variant = randomProduct.variants[0];
+
+    const qty = Math.floor(Math.random() * 2) + 1;
+    const price = Number(variant.price);
 
     await prisma.order.create({
       data: {
-        userId: testUser.id,
-        totalAmount: totalAmount,
+        userId: randomUser.id,
+        totalAmount: price * qty,
         status: status,
         paymentStatus: paymentStatus,
-        customerName: `Khách hàng mẫu #${i}`,
-        customerPhone: `09${Math.floor(Math.random() * 100000000).toString().padStart(8, '0')}`,
-        customerEmail: `customer${i}@example.com`,
-        shippingAddress: `${i * 123} Đường Lê Lợi, Quận 1, TP. Hồ Chí Minh`,
-        notes: i % 3 === 0 ? "Giao hàng giờ hành chính giúp mình." : null,
+        customerName: randomUser.name,
+        customerPhone: randomUser.phone || '0900000000',
+        customerEmail: randomUser.email,
+        shippingAddress: randomUser.address || 'Hồ Chí Minh',
+        paymentMethod: Math.random() > 0.5 ? "COD" : "VNPAY",
+        createdAt: randomDate,
         items: {
-          create: orderItemsData
+          create: [{
+            variantId: variant.id,
+            quantity: qty,
+            price: price
+          }]
         }
       }
     });
   }
 
-  console.log('✨ QUÁ TRÌNH SEED DỮ LIỆU HOÀN TẤT!');
+  console.log('💬 Đang tạo tin nhắn mẫu...');
+  for (let i = 0; i < 15; i++) {
+    const randomUser = allCustomers[Math.floor(Math.random() * allCustomers.length)];
+    await prisma.message.create({
+      data: {
+        senderId: randomUser.id,
+        receiverId: admin.id,
+        content: "Shop ơi tư vấn giúp mình mẫu sơ mi mới nhất với ạ!",
+        senderType: 'USER',
+        createdAt: new Date(now.getTime() - Math.floor(Math.random() * 48 * 60 * 60 * 1000))
+      }
+    });
+  }
+
+  console.log('✨ QUÁ TRÌNH SEED TỔNG THỂ HOÀN TẤT!');
 }
 
 main()

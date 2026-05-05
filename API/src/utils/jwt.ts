@@ -1,9 +1,9 @@
-import jwt from 'jsonwebtoken';
+import jwt, { SignOptions } from 'jsonwebtoken';
 
-const JWT_SECRET = process.env.JWT_SECRET || '1231sdfa32r32dasda';
-const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '15m';
-const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'i09ar30jdspjfpa33d';
-const JWT_REFRESH_EXPIRES_IN = process.env.JWT_REFRESH_EXPIRES_IN || '7d';
+const JWT_SECRET = (process.env.JWT_SECRET || '1231sdfa32r32dasda') as string;
+const JWT_EXPIRES_IN = (process.env.JWT_EXPIRES_IN || '15m') as any;
+const JWT_REFRESH_SECRET = (process.env.JWT_REFRESH_SECRET || 'i09ar30jdspjfpa33d') as string;
+const JWT_REFRESH_EXPIRES_IN = (process.env.JWT_REFRESH_EXPIRES_IN || '7d') as any;
 
 export interface JwtPayload {
   userId: string;
@@ -12,15 +12,13 @@ export interface JwtPayload {
 }
 
 export function signToken(payload: JwtPayload): string {
-  return jwt.sign(payload, JWT_SECRET, {
-    expiresIn: JWT_EXPIRES_IN,
-  });
+  const options: SignOptions = { expiresIn: JWT_EXPIRES_IN };
+  return jwt.sign(payload, JWT_SECRET, options);
 }
 
 export function signRefreshToken(payload: JwtPayload): string {
-  return jwt.sign(payload, JWT_REFRESH_SECRET, {
-    expiresIn: JWT_REFRESH_EXPIRES_IN,
-  });
+  const options: SignOptions = { expiresIn: JWT_REFRESH_EXPIRES_IN };
+  return jwt.sign(payload, JWT_REFRESH_SECRET, options);
 }
 
 export function verifyRefreshToken(token: string): JwtPayload | null {
@@ -34,6 +32,19 @@ export function verifyRefreshToken(token: string): JwtPayload | null {
 export function verifyToken(token: string): JwtPayload | null {
   try {
     return jwt.verify(token, JWT_SECRET) as JwtPayload;
+  } catch (error) {
+    return null;
+  }
+}
+
+export function signResetToken(payload: { userId: string }): string {
+  const options: SignOptions = { expiresIn: '15m' };
+  return jwt.sign(payload, JWT_SECRET, options);
+}
+
+export function verifyResetToken(token: string): { userId: string } | null {
+  try {
+    return jwt.verify(token, JWT_SECRET) as { userId: string };
   } catch (error) {
     return null;
   }
