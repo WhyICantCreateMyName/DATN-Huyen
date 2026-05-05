@@ -11,7 +11,7 @@ import {
   Info
 } from "lucide-react";
 import { uploadService } from "@/services/upload.service";
-import { useToast } from "@/contexts/ToastProvider";
+import { useToast } from "@/contexts/ToastContext";
 import { useVariantForm } from "@/hooks/use-variant";
 import { useCategory } from "@/hooks/use-category";
 import { useProductActions } from "@/hooks/use-product";
@@ -21,14 +21,13 @@ import { ImagePicker } from "@/components/ui/input/ImagePicker";
 import { Modal } from "@/components/ui/Modal";
 
 interface ProductFormModuleProps {
-  isOpen: boolean;
   initialData?: Product;
   isEdit?: boolean;
   onClose: () => void;
   onSuccess?: () => void;
 }
 
-export function ProductFormModule({ isOpen, initialData, isEdit = false, onClose, onSuccess }: ProductFormModuleProps) {
+export function ProductFormModule({ initialData, isEdit = false, onClose, onSuccess }: ProductFormModuleProps) {
   const { toast } = useToast();
   const [uploading, setUploading] = useState(false);
   const [categorySearch, setCategorySearch] = useState("");
@@ -53,32 +52,30 @@ export function ProductFormModule({ isOpen, initialData, isEdit = false, onClose
   } = useVariantForm([]);
 
   React.useEffect(() => {
-    if (isOpen) {
-      setName(initialData?.name || "");
-      setCategoryId(initialData?.categoryId || "");
-      setDescription(initialData?.description || "");
+    setName(initialData?.name || "");
+    setCategoryId(initialData?.categoryId || "");
+    setDescription(initialData?.description || "");
 
-      let imagesData: string[] = [];
-      if (initialData?.images) {
-        imagesData = typeof initialData.images === 'string'
-          ? JSON.parse(initialData.images)
-          : initialData.images;
-      }
-      setImages(imagesData);
-
-      if (initialData?.variants) {
-        setVariants(initialData.variants.map(v => ({
-          id: v.id,
-          size: v.size,
-          color: v.color,
-          price: v.price.toString(),
-          stock: v.stock.toString()
-        })));
-      } else {
-        setVariants([{ size: "", color: "", price: "", stock: "" }]);
-      }
+    let imagesData: string[] = [];
+    if (initialData?.images) {
+      imagesData = typeof initialData.images === 'string'
+        ? JSON.parse(initialData.images)
+        : initialData.images;
     }
-  }, [isOpen, initialData, setVariants]);
+    setImages(imagesData);
+
+    if (initialData?.variants) {
+      setVariants(initialData.variants.map(v => ({
+        id: v.id,
+        size: v.size,
+        color: v.color,
+        price: v.price.toString(),
+        stock: v.stock.toString()
+      })));
+    } else {
+      setVariants([{ size: "", color: "", price: "", stock: "" }]);
+    }
+  }, [initialData, setVariants]);
 
   const handleImageUpload = async (files: FileList) => {
     setUploading(true);
@@ -130,10 +127,10 @@ export function ProductFormModule({ isOpen, initialData, isEdit = false, onClose
     }
 
     try {
-      const productData = { 
-        name, 
-        categoryId, 
-        description, 
+      const productData = {
+        name,
+        categoryId,
+        description,
         images,
         variants: variants.map(v => ({
           id: v.id,
@@ -173,7 +170,6 @@ export function ProductFormModule({ isOpen, initialData, isEdit = false, onClose
 
   return (
     <Modal
-      isOpen={isOpen}
       onClose={onClose}
       title={isEdit ? "Chỉnh sửa sản phẩm" : "Thêm sản phẩm mới"}
       size="xl"

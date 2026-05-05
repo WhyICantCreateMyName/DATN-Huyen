@@ -1,8 +1,9 @@
 import useSWR, { mutate } from 'swr';
 import useSWRMutation from 'swr/mutation';
 import { userService } from '@/services/user.service';
-import { AuthType, QueryParams, PaginatedResponse } from '@/types';
+import { QueryParams } from '@/types';
 import { useDebounce } from './use-debounce';
+import { useToast } from '@/contexts/ToastContext';
 
 export const useUser = (params?: QueryParams) => {
   const debouncedSearch = useDebounce(params?.search, 700);
@@ -11,9 +12,7 @@ export const useUser = (params?: QueryParams) => {
     ['users', { ...params, search: debouncedSearch }],
     async () => {
       const result = await userService.getUsers({ ...params, search: debouncedSearch });
-      return result.status === 200
-        ? result.data.data as PaginatedResponse<AuthType.User>
-        : { data: [], pagination: { total: 0, page: 1, limit: 10, totalPages: 0 } };
+      return result.data.data;
     },
     {
       revalidateOnFocus: false,
@@ -29,27 +28,25 @@ export const useUser = (params?: QueryParams) => {
   };
 };
 
-import { useToast } from '@/contexts/ToastProvider';
-
 export const useUserActions = () => {
   const { toast } = useToast();
 
-  const { trigger: updateRole, isMutating: isUpdatingRole } = useSWRMutation(
-    'updateUserRole',
-    async (_key: string, { arg }: { arg: { id: string; role: 'USER' | 'ADMIN' } }) => {
+  const { trigger: createUser, isMutating: isCreating } = useSWRMutation(
+    'createUser',
+    async (_key: string, { arg }: { arg: any }) => {
       try {
-        const result = await userService.updateUser(arg.id, arg.role);
+        const result = await userService.createUser(arg);
         mutate((key: any) => Array.isArray(key) && key[0] === 'users');
         toast({
           title: "Thành công",
-          message: "Đã cập nhật quyền người dùng",
+          message: "Đã tạo tài khoản mới",
           variant: "success"
         });
-        return result.status;
-      } catch (err) {
+        return result.data.data;
+      } catch (err: any) {
         toast({
           title: "Lỗi",
-          message: "Không thể cập nhật quyền người dùng",
+          message: err.response?.data?.error || "Không thể tạo tài khoản",
           variant: "error"
         });
         throw err;
@@ -57,45 +54,44 @@ export const useUserActions = () => {
     }
   );
 
-  const { trigger: deleteUser, isMutating: isDeletingUser } = useSWRMutation(
+  const { trigger: updateUser, isMutating: isUpdating } = useSWRMutation(
+    'updateUser',
+    async (_key: string, { arg }: { arg: { id: string; data: any } }) => {
+      try {
+        const result = await userService.updateUser(arg.id, arg.data);
+        mutate((key: any) => Array.isArray(key) && key[0] === 'users');
+        toast({
+          title: "Thành công",
+          message: "Đã cập nhật tài khoản",
+          variant: "success"
+        });
+        return result.data.data;
+      } catch (err: any) {
+        toast({
+          title: "Lỗi",
+          message: err.response?.data?.error || "Không thể cập nhật tài khoản",
+          variant: "error"
+        });
+        throw err;
+      }
+    }
+  );
+
+  const { trigger: deleteUser, isMutating: isDeleting } = useSWRMutation(
     'deleteUser',
     async (_key: string, { arg }: { arg: string }) => {
       try {
-        const result = await userService.deleteUser(arg);
+        await userService.deleteUser(arg);
         mutate((key: any) => Array.isArray(key) && key[0] === 'users');
         toast({
           title: "Thành công",
-          message: "Đã xóa người dùng",
+          message: "Đã xóa tài khoản",
           variant: "success"
         });
-        return result.status;
-      } catch (err) {
+      } catch (err: any) {
         toast({
           title: "Lỗi",
-          message: "Không thể xóa người dùng",
-          variant: "error"
-        });
-        throw err;
-      }
-    }
-  );
-
-  const { trigger: updateProfile, isMutating: isUpdatingProfile } = useSWRMutation(
-    'updateProfile',
-    async (_key: string, { arg }: { arg: AuthType.UpdateUserInput }) => {
-      try {
-        const result = await userService.updateProfile(arg);
-        mutate('auth_me');
-        toast({
-          title: "Thành công",
-          message: "Đã cập nhật thông tin cá nhân",
-          variant: "success"
-        });
-        return result.status;
-      } catch (err) {
-        toast({
-          title: "Lỗi",
-          message: "Không thể cập nhật thông tin",
+          message: err.response?.data?.error || "Không thể xóa tài khoản",
           variant: "error"
         });
         throw err;
@@ -104,12 +100,11 @@ export const useUserActions = () => {
   );
 
   return {
-    updateRole,
-    isUpdatingRole,
+    createUser,
+    isCreating,
+    updateUser,
+    isUpdating,
     deleteUser,
-    isDeletingUser,
-    updateProfile,
-    isUpdatingProfile,
-    mutate
+    isDeleting
   };
 };

@@ -72,8 +72,7 @@ export function Pagination({
   if (total === 0) return null;
 
   return (
-    <div className="flex flex-col md:flex-row items-center justify-between gap-4 py-4 px-2">
-      {/* Limit Change (Left) */}
+    <div className="flex flex-col md:flex-row items-center justify-between gap-4 py-4 px-6">
       <div className="flex items-center gap-2">
         <span className="text-sm text-zinc-500 dark:text-zinc-400">Hiển thị</span>
         <select
@@ -85,10 +84,9 @@ export function Pagination({
             <option key={v} value={v}>{v}</option>
           ))}
         </select>
-        <span className="text-sm text-zinc-500 dark:text-zinc-400">kết quả</span>
+        <span className="text-sm text-zinc-500 dark:text-zinc-400">kết quả / Trang</span>
       </div>
 
-      {/* Main Pagination Buttons */}
       <div className="flex items-center gap-1.5">
         <button
           onClick={() => onPageChange(1)}
@@ -136,7 +134,6 @@ export function Pagination({
         </button>
       </div>
 
-      {/* Jump Page (Right) */}
       <form onSubmit={handleJump} className="flex items-center gap-2">
         <span className="text-sm text-zinc-500 dark:text-zinc-400">Đến trang</span>
         <input

@@ -2,8 +2,8 @@ import axios from 'axios';
 import Cookies from 'js-cookie';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
-const TOKEN_KEY = 'auth_token';
-const REFRESH_TOKEN_KEY = 'refresh_token';
+const TOKEN_KEY = 'admin_auth_token';
+const REFRESH_TOKEN_KEY = 'admin_refresh_token';
 
 const axiosInstance = axios.create({
   baseURL: API_URL,

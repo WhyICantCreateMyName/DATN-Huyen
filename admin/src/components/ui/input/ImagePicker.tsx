@@ -12,6 +12,7 @@ interface ImagePickerProps {
   maxFiles?: number;
   className?: string;
   description?: string;
+  imageClassName?: string;
 }
 
 export function ImagePicker({
@@ -22,6 +23,7 @@ export function ImagePicker({
   maxFiles = 10,
   className,
   description = "Hỗ trợ JPG, PNG, WEBP. Tối đa 10 ảnh.",
+  imageClassName,
 }: ImagePickerProps) {
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -61,14 +63,14 @@ export function ImagePicker({
         {images.map((url, index) => (
           <div
             key={index}
-            className="group relative aspect-[4/5] rounded-3xl overflow-hidden border border-zinc-200 dark:border-zinc-800 bg-zinc-100 dark:bg-zinc-900 shadow-sm animate-in zoom-in duration-300"
+            className={cn("group relative aspect-[4/5] rounded-3xl overflow-hidden border border-zinc-200 dark:border-zinc-800 bg-zinc-100 dark:bg-zinc-900 shadow-sm animate-in zoom-in duration-300", imageClassName)}
           >
             <img
               src={url}
               alt={`Upload ${index}`}
-              className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+              className={"w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"}
             />
-            
+
             {/* Overlay Actions */}
             <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
               <button
@@ -101,7 +103,8 @@ export function ImagePicker({
               isDragging
                 ? "border-violet-500 bg-violet-500/5 scale-95"
                 : "border-zinc-200 dark:border-zinc-800 hover:border-violet-500/50 hover:bg-violet-500/5",
-              isLoading && "pointer-events-none opacity-50"
+              isLoading && "pointer-events-none opacity-50",
+              imageClassName
             )}
           >
             <input

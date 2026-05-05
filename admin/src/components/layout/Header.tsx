@@ -2,8 +2,8 @@
 
 import React from "react";
 import { Search, Bell, Moon, Sun, User } from "lucide-react";
-import { useAuth } from "@/contexts/AuthProvider";
-import { useTheme } from "@/contexts/ThemeProvider";
+import { useAuth } from "@/contexts/AuthContext";
+import { useTheme } from "@/contexts/ThemeContext";
 
 export function Header() {
   const { user } = useAuth();

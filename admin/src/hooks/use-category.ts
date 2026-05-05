@@ -29,7 +29,7 @@ export const useCategory = (params?: QueryParams) => {
   };
 };
 
-import { useToast } from '@/contexts/ToastProvider';
+import { useToast } from '@/contexts/ToastContext';
 
 export const useCategoryActions = () => {
   const { toast } = useToast();

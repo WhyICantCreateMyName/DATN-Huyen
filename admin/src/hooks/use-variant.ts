@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import useSWR, { mutate } from 'swr';
 import useSWRMutation from 'swr/mutation';
-import { useToast } from '@/contexts/ToastProvider';
+import { useToast } from '@/contexts/ToastContext';
 import { variantService } from '@/services/variant.service';
 import { ProductType, QueryParams, PaginatedResponse } from '@/types';
 

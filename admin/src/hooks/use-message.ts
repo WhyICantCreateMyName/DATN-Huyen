@@ -51,7 +51,7 @@ export const useMessage = (partnerId: string | null) => {
   };
 };
 
-import { useToast } from '@/contexts/ToastProvider';
+import { useToast } from '@/contexts/ToastContext';
 
 export const useMessageActions = (partnerId?: string | null) => {
   const { toast } = useToast();

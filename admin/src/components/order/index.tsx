@@ -23,12 +23,14 @@ import { cn } from "@/lib/utils";
 
 const statusFilters: { label: string; value: OrderStatus | undefined; icon: any; color: string }[] = [
   { label: "Tất cả đơn", value: undefined, icon: ClipboardList, color: "text-zinc-500" },
-  { label: "Chờ xử lý", value: "PENDING", icon: Clock, color: "text-amber-500" },
-  { label: "Đang xử lý", value: "PROCESSING", icon: AlertCircle, color: "text-blue-500" },
-  { label: "Đang giao", value: "DELIVERING", icon: Truck, color: "text-violet-500" },
-  { label: "Đã giao", value: "DELIVERED", icon: CheckCircle2, color: "text-emerald-500" },
-  { label: "Đã hủy", value: "CANCELLED", icon: XCircle, color: "text-rose-500" },
+  { label: "Chờ xử lý", value: OrderStatus.PENDING, icon: Clock, color: "text-amber-500" },
+  { label: "Đang xử lý", value: OrderStatus.PROCESSING, icon: AlertCircle, color: "text-blue-500" },
+  { label: "Đang giao", value: OrderStatus.DELIVERING, icon: Truck, color: "text-violet-500" },
+  { label: "Đã giao", value: OrderStatus.DELIVERED, icon: CheckCircle2, color: "text-emerald-500" },
+  { label: "Đã hủy", value: OrderStatus.CANCELLED, icon: XCircle, color: "text-rose-500" },
 ];
+
+import { PageHeader } from "@/components/ui/PageHeader";
 
 export function OrderListModule() {
   const [search, setSearch] = useState("");
@@ -115,12 +117,13 @@ export function OrderListModule() {
 
       {/* Main Content */}
       <div className="flex-1 space-y-6 min-w-0">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-zinc-900 dark:text-white">Quản lý đơn hàng</h1>
-            <p className="text-zinc-500 dark:text-zinc-400 mt-1 text-[15px]">Theo dõi và xử lý đơn đặt hàng của khách hàng</p>
-          </div>
-        </div>
+        <PageHeader
+          title="Quản lý đơn hàng"
+          subtitle="Theo dõi và xử lý đơn đặt hàng của khách hàng"
+          icon={ClipboardList}
+          onRefresh={() => mutate()}
+          refreshLoading={isLoading}
+        />
 
         <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
           <div className="md:col-span-12 relative group">
@@ -161,12 +164,13 @@ export function OrderListModule() {
         </div>
       </div>
 
-      <OrderModal
-        isOpen={isModalOpen}
-        order={selectedOrder}
-        onClose={() => setIsModalOpen(false)}
-        onSuccess={() => mutate()}
-      />
+      {isModalOpen && (
+        <OrderModal
+          order={selectedOrder}
+          onClose={() => setIsModalOpen(false)}
+          onSuccess={() => mutate()}
+        />
+      )}
     </div>
   );
 }

@@ -3,6 +3,7 @@ import useSWRMutation from 'swr/mutation';
 import { productService } from '@/services/product.service';
 import { ProductType, QueryParams, PaginatedResponse } from '@/types';
 import { useDebounce } from './use-debounce';
+import { useToast } from '@/contexts/ToastContext';
 
 export const useProduct = (params?: QueryParams) => {
   const debouncedSearch = useDebounce(params?.search, 700);
@@ -30,8 +31,6 @@ export const useProduct = (params?: QueryParams) => {
   };
 };
 
-import { useToast } from '@/contexts/ToastProvider';
-
 export const useProductActions = () => {
   const { toast } = useToast();
 
@@ -46,7 +45,7 @@ export const useProductActions = () => {
           message: "Đã tạo sản phẩm mới",
           variant: "success"
         });
-        return result.status;
+        return result.data.data;
       } catch (err) {
         toast({
           title: "Lỗi",
@@ -69,7 +68,7 @@ export const useProductActions = () => {
           message: "Đã cập nhật sản phẩm",
           variant: "success"
         });
-        return result.status;
+        return result.data.data;
       } catch (err) {
         toast({
           title: "Lỗi",

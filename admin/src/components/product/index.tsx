@@ -20,6 +20,8 @@ import { ProductTable } from "./ProductTable";
 import { CategoryModal } from "@/components/category/CategoryModal";
 import { cn } from "@/lib/utils";
 
+import { PageHeader } from "@/components/ui/PageHeader";
+
 export function ProductListModule() {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
@@ -127,7 +129,7 @@ export function ProductListModule() {
               {isSidebarCollapsed ? <Package className="w-5 h-5" /> : "Tất cả sản phẩm"}
             </button>
 
-            {!isSidebarCollapsed && categories.map((cat) => (
+            {!isSidebarCollapsed && categories?.map((cat) => (
               <button
                 key={cat.id}
                 onClick={() => {
@@ -150,19 +152,15 @@ export function ProductListModule() {
 
       {/* Main Content */}
       <div className="flex-1 space-y-6 min-w-0">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-zinc-900 dark:text-white">Danh sách sản phẩm</h1>
-            <p className="text-zinc-500 dark:text-zinc-400 mt-1 text-[15px]">Quản lý kho hàng và thông tin sản phẩm</p>
-          </div>
-          <button
-            onClick={handleAdd}
-            className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-violet-600 hover:bg-violet-700 text-white rounded-2xl font-bold transition-all active:scale-95 shadow-lg shadow-violet-200 dark:shadow-none text-[15px]"
-          >
-            <Plus className="w-5 h-5" />
-            <span>Thêm sản phẩm</span>
-          </button>
-        </div>
+        <PageHeader
+          title="Danh sách sản phẩm"
+          subtitle="Quản lý kho hàng và thông tin sản phẩm"
+          icon={Package}
+          onRefresh={() => mutate()}
+          refreshLoading={isLoading}
+          addButtonText="Thêm sản phẩm"
+          onAdd={handleAdd}
+        />
 
         <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
           <div className="md:col-span-8 relative group">
@@ -210,19 +208,21 @@ export function ProductListModule() {
         </div>
       </div>
 
-      <ProductFormModule
-        isOpen={isModalOpen}
-        initialData={editingProduct}
-        isEdit={!!editingProduct}
-        onClose={() => setIsModalOpen(false)}
-        onSuccess={() => mutate()}
-      />
+      {isModalOpen && (
+        <ProductFormModule
+          initialData={editingProduct}
+          isEdit={!!editingProduct}
+          onClose={() => setIsModalOpen(false)}
+          onSuccess={() => mutate()}
+        />
+      )}
 
-      <CategoryModal
-        isOpen={isCategoryModalOpen}
-        onClose={() => setIsCategoryModalOpen(false)}
-        onSuccess={() => mutateCategories()}
-      />
+      {isCategoryModalOpen && (
+        <CategoryModal
+          onClose={() => setIsCategoryModalOpen(false)}
+          onSuccess={() => mutateCategories()}
+        />
+      )}
     </div>
   );
 }

@@ -16,9 +16,10 @@ import {
   MessageSquare,
   Package,
   Layers,
-  CreditCard
+  CreditCard,
+  Image as ImageIcon
 } from "lucide-react";
-import { useAuth } from "@/contexts/AuthProvider";
+import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 
 const menuItems = [
@@ -26,9 +27,11 @@ const menuItems = [
   { icon: Package, label: "Sản phẩm", href: "/product" },
   { icon: Layers, label: "Danh mục", href: "/category" },
   { icon: ShoppingBag, label: "Đơn hàng", href: "/order" },
-  { icon: CreditCard, label: "Nhập hàng", href: "/purchase-invoice" },
-  { icon: Users, label: "Khách hàng", href: "/user" },
+  { icon: CreditCard, label: "Nhập hàng", href: "/purchase" },
+  { icon: Users, label: "Khách hàng", href: "/customer" },
   { icon: MessageSquare, label: "Tin nhắn", href: "/message" },
+  { icon: ImageIcon, label: "Banner", href: "/banner" },
+  { icon: Settings, label: "Quản lý tài khoản", href: "/user" },
 ];
 
 export function Sidebar() {

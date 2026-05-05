@@ -2,12 +2,12 @@ import useSWR from 'swr';
 import { cartService } from '@/services/cart.service';
 import { CartType, ApiResponse } from '@/types';
 import { AxiosResponse } from 'axios';
-import { useToast } from '@/contexts/ToastProvider';
+import { useToast } from '@/contexts/ToastContext';
 
 export const useCart = () => {
   const { toast } = useToast();
   const { data: response, error, mutate, isLoading } = useSWR<AxiosResponse<ApiResponse<CartType.Cart>>>(
-    'cart', 
+    'cart',
     () => cartService.getCart()
   );
 

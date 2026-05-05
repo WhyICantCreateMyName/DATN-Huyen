@@ -24,28 +24,27 @@ import { vi } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 
 interface OrderModalProps {
-  isOpen: boolean;
   order?: Order;
   onClose: () => void;
   onSuccess: () => void;
 }
 
 const statusOptions: { value: OrderStatus; label: string; icon: any; color: string }[] = [
-  { value: "PENDING", label: "Chờ xử lý", icon: Clock, color: "text-amber-500" },
-  { value: "PROCESSING", label: "Đang xử lý", icon: AlertCircle, color: "text-blue-500" },
-  { value: "DELIVERING", label: "Đang giao hàng", icon: Truck, color: "text-violet-500" },
-  { value: "DELIVERED", label: "Đã giao hàng", icon: CheckCircle2, color: "text-emerald-500" },
-  { value: "CANCELLED", label: "Đã hủy đơn", icon: XCircle, color: "text-rose-500" },
+  { value: OrderStatus.PENDING, label: "Chờ xử lý", icon: Clock, color: "text-amber-500" },
+  { value: OrderStatus.PROCESSING, label: "Đang xử lý", icon: AlertCircle, color: "text-blue-500" },
+  { value: OrderStatus.DELIVERING, label: "Đang giao hàng", icon: Truck, color: "text-violet-500" },
+  { value: OrderStatus.DELIVERED, label: "Đã giao hàng", icon: CheckCircle2, color: "text-emerald-500" },
+  { value: OrderStatus.CANCELLED, label: "Đã hủy đơn", icon: XCircle, color: "text-rose-500" },
 ];
 
 const paymentOptions: { value: PaymentStatus; label: string; color: string }[] = [
-  { value: "PENDING", label: "Chưa thanh toán", color: "text-zinc-500" },
-  { value: "PAID", label: "Đã thanh toán", color: "text-emerald-500" },
-  { value: "FAILED", label: "Thanh toán lỗi", color: "text-rose-500" },
-  { value: "REFUNDED", label: "Đã hoàn tiền", color: "text-violet-500" },
+  { value: PaymentStatus.PENDING, label: "Chưa thanh toán", color: "text-zinc-500" },
+  { value: PaymentStatus.PAID, label: "Đã thanh toán", color: "text-emerald-500" },
+  { value: PaymentStatus.FAILED, label: "Thanh toán lỗi", color: "text-rose-500" },
+  { value: PaymentStatus.REFUNDED, label: "Đã hoàn tiền", color: "text-violet-500" },
 ];
 
-export default function OrderModal({ isOpen, order: initialOrder, onClose, onSuccess }: OrderModalProps) {
+export default function OrderModal({ order: initialOrder, onClose, onSuccess }: OrderModalProps) {
   const { updateOrderStatus, updatePaymentStatus, isUpdatingStatus, isUpdatingPayment } = useOrderActions();
   const [currentOrder, setCurrentOrder] = React.useState<Order | undefined>(initialOrder);
 
@@ -83,7 +82,6 @@ export default function OrderModal({ isOpen, order: initialOrder, onClose, onSuc
 
   return (
     <Modal
-      isOpen={isOpen}
       onClose={onClose}
       title={`Chi tiết đơn hàng #${currentOrder.id.slice(0, 8)}`}
       size="xl"

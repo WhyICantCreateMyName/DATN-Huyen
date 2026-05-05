@@ -31,7 +31,7 @@ export const useOrder = (params?: QueryParams) => {
   };
 };
 
-import { useToast } from '@/contexts/ToastProvider';
+import { useToast } from '@/contexts/ToastContext';
 
 export const useOrderActions = () => {
   const { toast } = useToast();

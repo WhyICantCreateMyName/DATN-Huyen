@@ -2,30 +2,28 @@
 
 import React, { useState } from "react";
 import { Save, Loader2, Info } from "lucide-react";
-import { useToast } from "@/contexts/ToastProvider";
+import { useToast } from "@/contexts/ToastContext";
 import { useCategoryActions } from "@/hooks/use-category";
 import { CategoryType } from "@/types";
 import { Modal } from "@/components/ui/Modal";
 
 interface CategoryModalProps {
-  isOpen: boolean;
   onClose: () => void;
   initialData?: CategoryType.Category;
   isEdit?: boolean;
   onSuccess?: () => void;
 }
 
-export function CategoryModal({ 
-  isOpen, 
-  onClose, 
-  initialData, 
-  isEdit = false, 
-  onSuccess 
+export function CategoryModal({
+  onClose,
+  initialData,
+  isEdit = false,
+  onSuccess
 }: CategoryModalProps) {
   const { toast } = useToast();
   const [name, setName] = useState(initialData?.name || "");
   const [description, setDescription] = useState(initialData?.description || "");
-  
+
   const { createCategory, updateCategory, isCreating, isUpdating } = useCategoryActions();
   const loading = isCreating || isUpdating;
 
@@ -69,7 +67,6 @@ export function CategoryModal({
 
   return (
     <Modal
-      isOpen={isOpen}
       onClose={onClose}
       title={isEdit ? "Chỉnh sửa danh mục" : "Thêm danh mục mới"}
       size="md"

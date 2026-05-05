@@ -13,10 +13,12 @@ export const metadata: Metadata = {
   description: "Admin Dashboard",
 };
 
-import { AuthProvider } from "@/contexts/AuthProvider";
-import { LoadingProvider } from "@/contexts/LoadingProvider";
-import { ToastProvider } from "@/contexts/ToastProvider";
-import { ThemeProvider } from "@/contexts/ThemeProvider";
+import { AuthProvider } from "@/contexts/AuthContext";
+import { LoadingProvider } from "@/contexts/LoadingContext";
+import { ToastProvider } from "@/contexts/ToastContext";
+import { ThemeProvider } from "@/contexts/ThemeContext";
+
+import { SocketProvider } from "@/contexts/SocketContext";
 
 export default function RootLayout({
   children,
@@ -30,7 +32,9 @@ export default function RootLayout({
           <ToastProvider>
             <LoadingProvider>
               <AuthProvider>
-                {children}
+                <SocketProvider>
+                  {children}
+                </SocketProvider>
               </AuthProvider>
             </LoadingProvider>
           </ToastProvider>

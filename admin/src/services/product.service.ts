@@ -1,6 +1,6 @@
 import axios from '@/services/axios';
 import { AxiosResponse } from 'axios';
-import { ProductType, CategoryType, ApiResponse, QueryParams, PaginatedResponse } from '@/types';
+import { ProductType, ApiResponse, QueryParams, PaginatedResponse } from '@/types';
 
 export const productService = {
   // Products

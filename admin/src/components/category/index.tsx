@@ -13,12 +13,7 @@ import { Category } from "@/types/category";
 import { Pagination } from "@/components/ui/Pagination";
 import { CategoryModal } from "./CategoryModal";
 import { CategoryTable } from "./CategoryTable";
-import { clsx, type ClassValue } from "clsx";
-import { twMerge } from "tailwind-merge";
-
-function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs));
-}
+import { PageHeader } from "@/components/ui/PageHeader";
 
 export function CategoryListModule() {
   const [search, setSearch] = useState("");
@@ -58,31 +53,15 @@ export function CategoryListModule() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-zinc-900 dark:text-white flex items-center gap-3">
-            <Tag className="w-8 h-8 text-violet-500" />
-            Quản lý danh mục
-          </h1>
-          <p className="text-zinc-500 dark:text-zinc-400 mt-1 text-[15px]">Phân loại sản phẩm để khách hàng dễ dàng tìm kiếm</p>
-        </div>
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => mutate()}
-            className="p-2.5 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl text-zinc-500 hover:text-violet-600 transition-all active:scale-95 shadow-sm"
-            title="Làm mới dữ liệu"
-          >
-            <RefreshCw className={cn("w-5 h-5", isLoading && "animate-spin")} />
-          </button>
-          <button
-            onClick={handleAdd}
-            className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-violet-600 hover:bg-violet-700 text-white rounded-2xl font-bold transition-all active:scale-95 shadow-lg shadow-violet-200 dark:shadow-none text-[15px]"
-          >
-            <Plus className="w-5 h-5" />
-            <span>Thêm danh mục</span>
-          </button>
-        </div>
-      </div>
+      <PageHeader
+        title="Quản lý danh mục"
+        subtitle="Phân loại sản phẩm để khách hàng dễ dàng tìm kiếm"
+        icon={Tag}
+        onRefresh={() => mutate()}
+        refreshLoading={isLoading}
+        addButtonText="Thêm danh mục"
+        onAdd={handleAdd}
+      />
 
       <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
         <div className="md:col-span-8 relative group">
@@ -129,13 +108,14 @@ export function CategoryListModule() {
         </div>
       </div>
 
-      <CategoryModal
-        isOpen={isModalOpen}
-        initialData={editingCategory}
-        isEdit={!!editingCategory}
-        onClose={() => setIsModalOpen(false)}
-        onSuccess={() => mutate()}
-      />
+      {isModalOpen && (
+        <CategoryModal
+          initialData={editingCategory}
+          isEdit={!!editingCategory}
+          onClose={() => setIsModalOpen(false)}
+          onSuccess={() => mutate()}
+        />
+      )}
     </div>
   );
 }

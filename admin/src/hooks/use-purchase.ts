@@ -29,7 +29,7 @@ export const usePurchase = (params?: QueryParams) => {
   };
 };
 
-import { useToast } from '@/contexts/ToastProvider';
+import { useToast } from '@/contexts/ToastContext';
 
 export const usePurchaseActions = () => {
   const { toast } = useToast();
@@ -80,9 +80,34 @@ export const usePurchaseActions = () => {
     }
   );
 
+  const { trigger: updateInvoice, isMutating: isUpdating } = useSWRMutation(
+    'updatePurchaseInvoice',
+    async (_key: string, { arg }: { arg: { id: string; data: PurchaseType.UpdatePurchaseInvoiceInput } }) => {
+      try {
+        const result = await purchaseInvoiceService.updateInvoice(arg.id, arg.data);
+        mutate((key: any) => Array.isArray(key) && key[0] === 'purchase_invoices');
+        toast({
+          title: "Thành công",
+          message: "Đã cập nhật thông tin hóa đơn",
+          variant: "success"
+        });
+        return result.status;
+      } catch (err) {
+        toast({
+          title: "Lỗi",
+          message: "Không thể cập nhật hóa đơn",
+          variant: "error"
+        });
+        throw err;
+      }
+    }
+  );
+
   return {
     createInvoice,
     isCreating,
+    updateInvoice,
+    isUpdating,
     deleteInvoice,
     isDeleting,
     mutate

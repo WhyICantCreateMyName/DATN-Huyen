@@ -19,7 +19,7 @@ export const useAuth = () => {
   );
 };
 
-import { useToast } from '@/contexts/ToastProvider';
+import { useToast } from '@/contexts/ToastContext';
 
 export const useAuthActions = () => {
   const { toast } = useToast();
@@ -30,7 +30,7 @@ export const useAuthActions = () => {
         const result = await authService.login(arg);
         if (result.status === 200) {
           const { user, token, refreshToken } = result.data.data as AuthType.AuthResponse;
-          
+
           if (user.role !== 'ADMIN') {
             toast({
               title: "Từ chối truy cập",
@@ -102,7 +102,7 @@ export const useAuthActions = () => {
       Cookies.remove(REFRESH_TOKEN_KEY);
       await mutate('auth_me', null, false);
       if (typeof window !== 'undefined') {
-        window.location.href = '/auth/login';
+        window.location.href = '/login';
       }
     }
   };

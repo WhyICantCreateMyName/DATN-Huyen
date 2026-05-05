@@ -1,5 +1,19 @@
-export type OrderStatus = "PENDING" | "PROCESSING" | "DELIVERING" | "DELIVERED" | "CANCELLED";
-export type PaymentStatus = "PENDING" | "PAID" | "FAILED" | "REFUNDED";
+export enum OrderStatus {
+  PENDING = "PENDING",
+  PROCESSING = "PROCESSING",
+  DELIVERING = "DELIVERING",
+  DELIVERED = "DELIVERED",
+  CANCELLED = "CANCELLED",
+  RETURN_REQUESTED = "RETURN_REQUESTED",
+  RETURNED = "RETURNED"
+}
+
+export enum PaymentStatus {
+  PENDING = "PENDING",
+  PAID = "PAID",
+  FAILED = "FAILED",
+  REFUNDED = "REFUNDED"
+}
 
 export interface OrderItem {
   id: string;

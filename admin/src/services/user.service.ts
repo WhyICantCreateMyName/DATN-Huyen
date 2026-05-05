@@ -11,8 +11,12 @@ export const userService = {
     return axios.get('/admin/users', { params });
   },
 
-  updateUser: (id: string, role: 'USER' | 'ADMIN'): Promise<AxiosResponse<ApiResponse<AuthType.User>>> => {
-    return axios.put(`/admin/users/${id}`, { role });
+  createUser: (data: any): Promise<AxiosResponse<ApiResponse<AuthType.User>>> => {
+    return axios.post('/admin/users', data);
+  },
+
+  updateUser: (id: string, data: { name?: string; email?: string; role?: 'USER' | 'ADMIN' }): Promise<AxiosResponse<ApiResponse<AuthType.User>>> => {
+    return axios.put(`/admin/users/${id}`, data);
   },
 
   deleteUser: (id: string): Promise<AxiosResponse<ApiResponse<any>>> => {

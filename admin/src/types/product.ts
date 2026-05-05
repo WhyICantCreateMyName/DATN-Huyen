@@ -7,6 +7,7 @@ export interface ProductVariant {
   color: string;
   price: number;
   stock: number;
+  product?: Product;
   createdAt: string;
   updatedAt: string;
 }

@@ -1,14 +1,9 @@
 import axios from '@/services/axios';
 import { AxiosResponse } from 'axios';
-import { ApiResponse } from '@/types';
-
-export interface UploadResponse {
-  files: string[];
-  count: number;
-}
+import { ApiResponse, UploadType } from '@/types';
 
 export const uploadService = {
-  uploadMultiple: (files: File[]): Promise<AxiosResponse<ApiResponse<UploadResponse>>> => {
+  uploadMultiple: (files: File[]): Promise<AxiosResponse<ApiResponse<UploadType.UploadResponse>>> => {
     const formData = new FormData();
     files.forEach((file) => {
       formData.append('files', file);
