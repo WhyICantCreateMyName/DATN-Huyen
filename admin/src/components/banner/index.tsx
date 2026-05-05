@@ -26,6 +26,7 @@ import { Modal } from "@/components/ui/Modal";
 import { BannerType } from "@/types";
 import { ImagePicker } from "@/components/ui/input/ImagePicker";
 import { uploadService } from "@/services/upload.service";
+import { useToast } from "@/contexts/ToastContext";
 
 export default function BannerModule() {
   const {
@@ -59,8 +60,27 @@ export default function BannerModule() {
     await updateBanner({ id: slider.id, data: { isActive: !slider.isActive } });
   };
 
+  const { toast } = useToast();
+
   const handleCreateSlider = async () => {
-    if (!newName.trim()) return;
+    if (!newName.trim()) {
+      toast({
+        title: "Thiếu thông tin",
+        message: "Vui lòng nhập tên cho Banner",
+        variant: "error"
+      });
+      return;
+    }
+
+    if (newItems.length === 0) {
+      toast({
+        title: "Thiếu hình ảnh",
+        message: "Banner cần ít nhất một hình ảnh",
+        variant: "error"
+      });
+      return;
+    }
+
     try {
       await createBanner({
         name: newName,
@@ -188,7 +208,7 @@ export default function BannerModule() {
               <div className="flex items-center gap-3">
                 <button
                   onClick={handleCreateSlider}
-                  disabled={isCreating || !newName.trim()}
+                  disabled={isCreating}
                   className="p-3.5 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 rounded-2xl transition-all"
                   title="Lưu Slider"
                 >

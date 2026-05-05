@@ -33,7 +33,7 @@ export const SocketProvider = ({ children }: { children: ReactNode }) => {
     newSocket.on('connect', () => {
       console.log('Socket connected:', newSocket.id);
       setIsConnected(true);
-      newSocket.emit('join', user.id);
+      newSocket.emit('join', { userId: user.id, role: user.role });
     });
 
     newSocket.on('disconnect', () => {

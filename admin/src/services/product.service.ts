@@ -22,6 +22,10 @@ export const productService = {
 
   deleteProduct: (id: string): Promise<AxiosResponse<ApiResponse<any>>> => {
     return axios.delete(`/products/${id}`);
+  },
+  
+  indexProducts: (): Promise<AxiosResponse<ApiResponse<any>>> => {
+    return axios.post('/admin/index-products');
   }
 };
 

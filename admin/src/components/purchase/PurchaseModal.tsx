@@ -442,13 +442,15 @@ export default function PurchaseModal({ onClose, onSuccess, initialData }: Purch
                                                 </td>
                                                 <td className="px-6 py-4">
                                                     <div className="relative">
-                                                        <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
+                                                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[12px] font-bold text-zinc-400">đ</span>
                                                         <input
-                                                            type="number"
-                                                            min="0"
-                                                            className="w-full pl-9 pr-3 py-2 bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl focus:ring-2 focus:ring-violet-500/20 outline-none transition-all disabled:opacity-70"
-                                                            value={item.costPrice}
-                                                            onChange={(e) => handleUpdateItem(index, "costPrice", parseFloat(e.target.value) || 0)}
+                                                            type="text"
+                                                            className="w-full pr-8 pl-2 py-2 bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl focus:ring-2 focus:ring-violet-500/20 outline-none transition-all disabled:opacity-70 font-medium text-violet-600"
+                                                            value={new Intl.NumberFormat('vi-VN').format(item.costPrice)}
+                                                            onChange={(e) => {
+                                                                const value = e.target.value.replace(/\D/g, "");
+                                                                handleUpdateItem(index, "costPrice", Number(value) || 0);
+                                                            }}
                                                             disabled={!!initialData}
                                                         />
                                                     </div>

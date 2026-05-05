@@ -17,7 +17,7 @@ echo [INFO] Using %PKG_MGR% as package manager.
 where docker >nul 2>nul
 if %ERRORLEVEL% equ 0 (
     echo [1/5] Starting Docker containers...
-    docker-compose up -d
+    docker-compose -f API/docker-compose.yml up -d
 ) else (
     echo [SKIP] Docker not found. Make sure Postgres/Qdrant are running.
 )
@@ -31,6 +31,7 @@ echo.
 echo [3/5] Running Prisma Migrations...
 call npx prisma generate
 call npx prisma db push
+call npx prisma db seed
 
 echo.
 echo [4/5] Installing Admin dependencies...

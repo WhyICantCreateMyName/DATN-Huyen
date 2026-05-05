@@ -103,6 +103,27 @@ export const useProductActions = () => {
     }
   );
 
+  const { trigger: indexProducts, isMutating: isIndexing } = useSWRMutation(
+    'indexProducts',
+    async () => {
+      try {
+        await productService.indexProducts();
+        toast({
+          title: "Thành công",
+          message: "Đã đồng bộ chỉ mục tìm kiếm AI, trợ lý AI giờ đây có thể tư vấn các sản phẩm mới!",
+          variant: "success"
+        });
+      } catch (err) {
+        toast({
+          title: "Lỗi",
+          message: "Không thể đồng bộ AI. Hãy thử lại sau.",
+          variant: "error"
+        });
+        throw err;
+      }
+    }
+  );
+
   return {
     createProduct,
     isCreating,
@@ -110,6 +131,8 @@ export const useProductActions = () => {
     isUpdating,
     deleteProduct,
     isDeleting,
+    indexProducts,
+    isIndexing,
     mutate
   };
 };

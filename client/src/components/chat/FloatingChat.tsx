@@ -29,7 +29,6 @@ export default function FloatingChat() {
       await sendMessage(message);
       setMessage('');
     } catch (error) {
-      // Error handled by hook toast
     }
   };
 
@@ -39,78 +38,80 @@ export default function FloatingChat() {
 
     return (
       <div className="space-y-4">
-        {blocks.map((block, bIdx) => {
-          // Kiểm tra xem khối này có chứa ảnh sản phẩm không
-          const hasImage = block.includes('![IMG]');
+        {content.split(/(\[PRODUCT_CARD\][\s\S]*?\[\/PRODUCT_CARD\])/g).map((block, bIdx) => {
+          if (!block || !block.trim()) return null;
 
-          if (hasImage) {
-            // Trích xuất thông tin từ khối
-            const nameMatch = block.match(/\*\*\[(.*?)\]\((.*?)\)\*\*/) || block.match(/^\s*\d*\.?\s*(.*?)\n/m);
-            const imageMatch = block.match(/!\[IMG\]\((.*?)\)/);
-            const priceMatch = block.match(/- Giá:\s*(.*)/);
+          if (block.startsWith('[PRODUCT_CARD]')) {
+            const name = block.match(/NAME:\s*(.*)/)?.[1] || 'Sản phẩm';
+            const price = block.match(/PRICE:\s*(.*)/)?.[1] || '';
+            const url = block.match(/LINK:\s*(.*)/)?.[1] || '#';
+            const imageUrl = block.match(/IMAGE:\s*(.*)/)?.[1] || '';
 
-            if (nameMatch || imageMatch) {
-              const name = nameMatch ? nameMatch[1] : 'Sản phẩm';
-              const url = nameMatch && nameMatch[2] ? nameMatch[2] : '#';
-              const imageUrl = imageMatch ? imageMatch[1] : '';
-              const price = priceMatch ? priceMatch[1] : '';
-
-              return (
-                <motion.a
-                  key={bIdx}
-                  href={url}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: bIdx * 0.1 }}
-                  className="block bg-white hover:bg-slate-50 border border-slate-200 rounded-2xl p-0 overflow-hidden transition-all group/card shadow-sm hover:shadow-md"
-                >
-                  <div className="flex gap-0">
-                    {imageUrl && (
-                      <div className="w-24 h-24 bg-slate-100 flex-shrink-0 relative overflow-hidden">
-                        <img
-                          src={imageUrl}
-                          alt={name}
-                          className="w-full h-full object-cover group-hover/card:scale-110 transition-transform duration-500"
-                        />
-                      </div>
+            return (
+              <motion.a
+                key={bIdx}
+                href={url}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: bIdx * 0.1 }}
+                className="block bg-white hover:bg-slate-50 border border-slate-200 rounded-2xl p-0 overflow-hidden transition-all group/card shadow-sm hover:shadow-md"
+              >
+                <div className="flex gap-0">
+                  {imageUrl && (
+                    <div className="w-24 h-24 bg-slate-100 flex-shrink-0 relative overflow-hidden">
+                      <img
+                        src={imageUrl}
+                        alt={name}
+                        className="w-full h-full object-cover group-hover/card:scale-110 transition-transform duration-500"
+                      />
+                    </div>
+                  )}
+                  <div className="p-3 flex-1 flex flex-col justify-center">
+                    <h4 className="text-[11px] font-black text-slate-900 uppercase tracking-tight group-hover/card:text-accent transition-colors line-clamp-2">
+                      {name.replace(/\*\*/g, '')}
+                    </h4>
+                    {price && (
+                      <p className="text-[10px] font-bold text-accent mt-1 uppercase tracking-wider">
+                        Giá: {price}
+                      </p>
                     )}
-                    <div className="p-3 flex-1 flex flex-col justify-center">
-                      <h4 className="text-[11px] font-black text-slate-900 uppercase tracking-tight group-hover/card:text-accent transition-colors line-clamp-2">
-                        {name.replace(/\*\*/g, '')}
-                      </h4>
-                      {price && (
-                        <p className="text-[10px] font-bold text-accent mt-1 uppercase tracking-wider">
-                          Giá: {price}
-                        </p>
-                      )}
-                      <div className="mt-2 flex items-center gap-1 text-[8px] font-black text-slate-400 uppercase tracking-widest">
-                        <span>Chi tiết</span>
-                        <Send className="w-2 h-2" />
-                      </div>
+                    <div className="mt-2 flex items-center gap-1 text-[8px] font-black text-slate-400 uppercase tracking-widest">
+                      <span>Chi tiết</span>
+                      <Send className="w-2 h-2" />
                     </div>
                   </div>
-                </motion.a>
-              );
-            }
+                </div>
+              </motion.a>
+            );
           }
 
           // Render text bình thường cho các khối không phải sản phẩm
           const lines = block.split('\n');
           return (
-            <div key={bIdx} className="space-y-1">
-              {lines.map((line, lIdx) => {
-                const boldParts = line.split(/(\*\*.*?\*\*)/);
-                return (
-                  <p key={lIdx} className="text-xs font-medium leading-relaxed">
-                    {boldParts.map((part, pIdx) => {
-                      if (part.startsWith('**') && part.endsWith('**')) {
-                        return <strong key={pIdx} className="font-black text-slate-900">{part.slice(2, -2)}</strong>;
-                      }
-                      return part;
-                    })}
-                  </p>
-                );
-              })}
+            <div
+              key={bIdx}
+              className={cn(
+                "max-w-[85%] rounded-2xl px-4 py-2.5 text-[14px] leading-relaxed",
+                isUser
+                  ? "bg-accent text-white rounded-tr-none shadow-lg shadow-accent/20"
+                  : "bg-slate-100 text-slate-800 rounded-tl-none border border-slate-200/50"
+              )}
+            >
+              <div className="space-y-1">
+                {lines.map((line, lIdx) => {
+                  const boldParts = line.split(/(\*\*.*?\*\*)/);
+                  return (
+                    <p key={lIdx} className="text-[13px] font-medium leading-relaxed">
+                      {boldParts.map((part, pIdx) => {
+                        if (part.startsWith('**') && part.endsWith('**')) {
+                          return <strong key={pIdx} className="font-black text-slate-900">{part.slice(2, -2)}</strong>;
+                        }
+                        return part;
+                      })}
+                    </p>
+                  );
+                })}
+              </div>
             </div>
           );
         })}

@@ -18,8 +18,9 @@ function createProductContext(products: any[], baseUrl: string): string {
   }
 
   let context = "SẢN PHẨM PHÙ HỢP:\n";
+  const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
   products.forEach((p, idx) => {
-    const productUrl = `${baseUrl.replace('/api', '')}/products/${p.id}`;
+    const productUrl = `${frontendUrl}/product/${p.id}`;
 
     let imageUrl = '';
     try {
@@ -66,8 +67,6 @@ function createProductContext(products: any[], baseUrl: string): string {
   return context;
 }
 
-const SHOP_ID = 'cb691d24-0bc0-4831-bd01-66d2cbb6c3d1';
-
 // GET /api/messages - Get current user's chat history with shop
 router.get('/', authenticate, async (req: AuthRequest, res: Response) => {
   try {
@@ -77,8 +76,8 @@ router.get('/', authenticate, async (req: AuthRequest, res: Response) => {
     const messages = await prisma.message.findMany({
       where: {
         OR: [
-          { senderId: userId, receiverId: SHOP_ID },
-          { senderId: SHOP_ID, receiverId: userId }
+          { senderId: userId },
+          { receiverId: userId }
         ]
       },
       orderBy: { createdAt: 'asc' }
@@ -96,19 +95,19 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
   try {
     const { content, conversationHistory } = req.body;
     const userId = req.user!.userId;
-    const SHOP_ID = 'cb691d24-0bc0-4831-bd01-66d2cbb6c3d1';
 
     if (!content) {
       return ErrorResponses.badRequest(res, 'Nội dung tin nhắn không được để trống');
     }
 
+    // Tạo tin nhắn gửi cho hệ thống (receiverId = null)
     await prisma.message.create({
       data: {
         senderId: userId,
-        receiverId: SHOP_ID,
+        receiverId: null, // Gửi cho Ban quản trị
         content,
         senderType: 'USER',
-        isRead: true
+        isRead: false
       }
     });
 
@@ -156,9 +155,15 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
 
     const aiResponse = await AiService.generateResponse(fullPrompt);
 
+    // Lấy đại diện 1 admin để làm senderId cho Bot
+    const firstAdmin = await prisma.user.findFirst({
+      where: { role: 'ADMIN' },
+      select: { id: true }
+    });
+
     const botMessage = await prisma.message.create({
       data: {
-        senderId: SHOP_ID,
+        senderId: firstAdmin?.id || userId, // Nếu không có admin thì tạm lấy chính user (tránh crash)
         receiverId: userId,
         content: aiResponse,
         senderType: 'BOT',

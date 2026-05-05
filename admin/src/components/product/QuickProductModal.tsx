@@ -44,6 +44,11 @@ export function QuickProductModal({
       return;
     }
 
+    if (formData.variants[0].price <= 0) {
+      toast({ title: "Thiếu giá", message: "Vui lòng nhập giá bán cho sản phẩm", variant: "warning" });
+      return;
+    }
+
     setLoading(true);
     try {
       const result = await createProduct({
@@ -110,19 +115,25 @@ export function QuickProductModal({
 
           <div className="space-y-2">
             <label className="text-[13px] font-bold text-zinc-500 uppercase flex items-center gap-2">
-              <Layers className="w-4 h-4" /> Giá bán gợi ý
+              <Layers className="w-4 h-4" /> Giá bán dự kiến
             </label>
-            <input
-              type="number"
-              className="w-full px-4 py-3 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl focus:ring-4 focus:ring-violet-500/10 outline-none transition-all font-medium"
-              value={formData.variants[0].price}
-              onChange={(e) => {
-                const newVariants = [...formData.variants];
-                newVariants[0].price = Number(e.target.value);
-                setFormData({ ...formData, variants: newVariants });
-              }}
-              placeholder="0"
-            />
+            <div className="relative">
+              <input
+                type="text"
+                className="w-full pl-4 pr-12 py-3 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl focus:ring-4 focus:ring-violet-500/10 outline-none transition-all font-bold text-violet-600"
+                value={new Intl.NumberFormat('vi-VN').format(formData.variants[0].price)}
+                onChange={(e) => {
+                  const value = e.target.value.replace(/\D/g, "");
+                  const newVariants = [...formData.variants];
+                  newVariants[0].price = Number(value);
+                  setFormData({ ...formData, variants: newVariants });
+                }}
+                placeholder="0"
+              />
+              <div className="absolute right-4 top-1/2 -translate-y-1/2 text-[11px] font-black text-zinc-400 uppercase">
+                VNĐ
+              </div>
+            </div>
           </div>
         </div>
 

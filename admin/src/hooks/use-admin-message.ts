@@ -72,15 +72,29 @@ export const useConversation = (userId: string | null) => {
     if (!socket || !userId || !currentUser) return;
 
     const messageData = {
+      id: `temp-${Date.now()}`,
+      senderId: currentUser.id,
+      receiverId: userId,
+      content,
+      senderType: MessageType.MessageSenderType.ADMIN,
+      isRead: false,
+      isSent: true,
+      createdAt: new Date().toISOString()
+    };
+
+    mutateMessages((prev: MessageType.Message[] | undefined) => {
+      if (!prev) return [messageData as any];
+      return [...prev, messageData];
+    }, false);
+
+    // Socket.io will handle the actual sending
+    socket.emit('message', {
       senderId: currentUser.id,
       receiverId: userId,
       content,
       senderType: MessageType.MessageSenderType.ADMIN
-    };
-
-    // Socket.io will handle the actual sending
-    socket.emit('message', messageData);
-  }, [socket, userId, currentUser]);
+    });
+  }, [socket, userId, currentUser, mutateMessages]);
 
   return {
     messages: messages || [],

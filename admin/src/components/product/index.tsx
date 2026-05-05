@@ -9,7 +9,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Menu,
-  Package
+  Package,
+  Sparkles
 } from "lucide-react";
 import { useProduct, useProductActions } from "@/hooks/use-product";
 import { useCategory } from "@/hooks/use-category";
@@ -41,7 +42,7 @@ export function ProductListModule() {
   });
 
   const { data: categories, isLoading: isLoadingCategories, mutate: mutateCategories } = useCategory();
-  const { deleteProduct } = useProductActions();
+  const { deleteProduct, indexProducts, isIndexing } = useProductActions();
 
   const handleAdd = () => {
     setEditingProduct(undefined);
@@ -160,7 +161,19 @@ export function ProductListModule() {
           refreshLoading={isLoading}
           addButtonText="Thêm sản phẩm"
           onAdd={handleAdd}
-        />
+        >
+          <button
+            onClick={() => indexProducts()}
+            disabled={isIndexing}
+            className={cn(
+              "inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-2xl font-bold transition-all active:scale-95 shadow-lg text-[15px]",
+              "bg-zinc-900 dark:bg-white text-white dark:text-zinc-950 hover:bg-zinc-800 dark:hover:bg-zinc-100 disabled:opacity-50"
+            )}
+          >
+            <Sparkles className={cn("w-5 h-5 text-violet-400", isIndexing && "animate-pulse")} />
+            <span>{isIndexing ? "Đang đồng bộ..." : "Đồng bộ AI"}</span>
+          </button>
+        </PageHeader>
 
         <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
           <div className="md:col-span-8 relative group">

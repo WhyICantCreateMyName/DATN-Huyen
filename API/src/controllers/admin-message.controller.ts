@@ -8,16 +8,18 @@ const router = Router();
 // All routes here require Admin privileges
 router.use(authenticate, isAdmin);
 
-const SHOP_ID = 'cb691d24-0bc0-4831-bd01-66d2cbb6c3d1';
-
 // GET /api/admin/messages - List all customer conversations
 router.get('/', async (req: AuthRequest, res: Response) => {
   try {
+    const adminId = req.user?.userId;
+
+    // Lấy tất cả tin nhắn liên quan đến admin này hoặc tin nhắn broadcast từ khách
     const messages = await prisma.message.findMany({
       where: {
         OR: [
-          { senderId: SHOP_ID },
-          { receiverId: SHOP_ID }
+          { senderId: adminId },
+          { receiverId: adminId },
+          { receiverId: null, senderType: { in: ['USER', 'BOT'] } } // Tin nhắn khách gửi chung cho Admin
         ]
       },
       orderBy: { createdAt: 'desc' },
@@ -29,11 +31,20 @@ router.get('/', async (req: AuthRequest, res: Response) => {
 
     const conversationsMap = new Map();
 
-    messages.forEach((msg) => {
-      const partnerId = msg.senderId === SHOP_ID ? msg.receiverId : msg.senderId;
-      const partner = msg.senderId === SHOP_ID ? msg.receiver : msg.sender;
+    (messages as any[]).forEach((msg) => {
+      // Đối tác là người dùng (không phải admin)
+      let partnerId: string | null = null;
+      let partner: any = null;
 
-      if (!partner || partner.role !== 'USER') return;
+      if (msg.senderType === 'ADMIN') {
+        partnerId = msg.receiverId;
+        partner = msg.receiver;
+      } else {
+        partnerId = msg.senderId;
+        partner = msg.sender;
+      }
+
+      if (!partnerId || !partner || partner.role === 'ADMIN') return;
 
       if (!conversationsMap.has(partnerId)) {
         conversationsMap.set(partnerId, {
@@ -44,7 +55,8 @@ router.get('/', async (req: AuthRequest, res: Response) => {
         });
       }
 
-      if (msg.receiverId === SHOP_ID && !msg.isRead) {
+      // Đếm tin nhắn chưa đọc từ khách
+      if (msg.senderType !== 'ADMIN' && !msg.isRead) {
         conversationsMap.get(partnerId).unreadCount++;
       }
     });
@@ -60,22 +72,27 @@ router.get('/', async (req: AuthRequest, res: Response) => {
 router.get('/:userId', async (req: AuthRequest, res: Response) => {
   try {
     const { userId } = req.params;
+    const adminId = req.user?.userId;
 
     const messages = await prisma.message.findMany({
       where: {
         OR: [
-          { senderId: SHOP_ID, receiverId: userId },
-          { senderId: userId, receiverId: SHOP_ID }
+          { senderId: adminId, receiverId: userId }, // Admin gửi cho khách
+          { senderId: userId, receiverId: adminId }, // Khách gửi riêng cho admin này
+          { senderId: userId, receiverId: null }      // Khách gửi broadcast
         ]
       },
       orderBy: { createdAt: 'asc' }
     });
 
-    // Mark as read
+    // Đánh dấu là đã đọc cho các tin nhắn từ khách gửi đến admin này hoặc broadcast
     await prisma.message.updateMany({
       where: {
         senderId: userId,
-        receiverId: SHOP_ID,
+        OR: [
+          { receiverId: adminId },
+          { receiverId: null }
+        ],
         isRead: false
       },
       data: { isRead: true, readAt: new Date() }

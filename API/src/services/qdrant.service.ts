@@ -18,14 +18,14 @@ export class QdrantService {
     try {
       const collections = await this.client.getCollections();
       const collectionInfo = collections.collections.find((c) => c.name === COLLECTION_NAME);
-      
+
       const NEW_VECTOR_SIZE = 3072; // gemini-embedding-2 dimension
 
       if (collectionInfo) {
         // Check current dimension
         const detail = await this.client.getCollection(COLLECTION_NAME);
         const currentSize = (detail.config?.params?.vectors as any)?.size;
-        
+
         if (currentSize !== NEW_VECTOR_SIZE) {
           console.log(`⚠️ Dimension mismatch (${currentSize} vs ${NEW_VECTOR_SIZE}). Recreating collection...`);
           await this.client.deleteCollection(COLLECTION_NAME);
@@ -52,7 +52,7 @@ export class QdrantService {
     if (product.name) parts.push(`Tên sản phẩm: ${product.name}`);
     if (product.category?.name) parts.push(`Danh mục: ${product.category.name}`);
     if (product.description) parts.push(`Mô tả: ${product.description}`);
-    
+
     if (product.variants && product.variants.length > 0) {
       const prices = product.variants.map((v: any) => parseFloat(v.price));
       const minPrice = Math.min(...prices);
@@ -68,7 +68,7 @@ export class QdrantService {
 
       const colors = [...new Set(product.variants.map((v: any) => v.color))];
       parts.push(`Màu sắc: ${colors.join(', ')}`);
-      
+
       const totalStock = product.variants.reduce((sum: number, v: any) => sum + v.stock, 0);
       parts.push(`Trạng thái: ${totalStock > 0 ? 'Còn hàng' : 'Hết hàng'}`);
     }
@@ -83,18 +83,42 @@ export class QdrantService {
     try {
       await this.initCollection();
 
-      // 1. Check current count in Qdrant vs Database
-      const [products, collectionDetail] = await Promise.all([
-        prisma.product.findMany({
-          include: { category: true, variants: true },
-        }),
-        this.client.getCollection(COLLECTION_NAME)
-      ]);
+      // Lấy toàn bộ sản phẩm từ DB
+      const products = await prisma.product.findMany({
+        include: { category: true, variants: true },
+      });
 
-      const currentCount = collectionDetail.points_count || 0;
-      
-      if (!force && products.length > 0 && currentCount === products.length) {
-        console.log(`ℹ️ Qdrant already has ${currentCount} products indexed. Skipping re-indexing...`);
+      // 1. Kiểm tra sự tồn tại của ID mẫu (để biết dữ liệu có bị stale sau khi seed không)
+      let needsIndexing = force;
+
+      if (!needsIndexing && products.length > 0) {
+        try {
+          const collectionDetail = await this.client.getCollection(COLLECTION_NAME);
+          const currentCount = collectionDetail.points_count || 0;
+
+          if (currentCount !== products.length) {
+            needsIndexing = true;
+          } else {
+            // Kiểm tra ngẫu nhiên 3 ID xem có tồn tại trong Qdrant không
+            const sampleSize = Math.min(3, products.length);
+            const sampleProducts = products.slice(0, sampleSize);
+            const idsToCheck = sampleProducts.map(p => p.id);
+
+            const retrieved = await this.client.retrieve(COLLECTION_NAME, {
+              ids: idsToCheck
+            });
+            if (retrieved.length < idsToCheck.length) {
+              console.log('⚠️ Dữ liệu Qdrant bị lệch ID (có thể do mới seed lại). Cần đánh chỉ mục lại...');
+              needsIndexing = true;
+            }
+          }
+        } catch (e) {
+          needsIndexing = true; // Collection có lỗi hoặc chưa có
+        }
+      }
+
+      if (!needsIndexing && products.length > 0) {
+        console.log(`ℹ️ Qdrant data is up-to-date (${products.length} products). Skipping...`);
         return;
       }
 
@@ -105,24 +129,31 @@ export class QdrantService {
 
       console.log(`🚀 Indexing ${products.length} products into Qdrant (Force: ${force})...`);
 
-      const points = [];
-      for (const product of products) {
-        const text = this.createProductText(product);
-        const vector = await AiService.generateEmbedding(text);
+      const CHUNK_SIZE = 50;
+      const points: any[] = [];
 
-        points.push({
-          id: product.id,
-          vector: vector,
-          payload: {
+      for (let i = 0; i < products.length; i += CHUNK_SIZE) {
+        const chunk = products.slice(i, i + CHUNK_SIZE);
+        const texts = chunk.map(p => this.createProductText(p));
+
+        console.log(`   Processing chunk ${Math.floor(i / CHUNK_SIZE) + 1}...`);
+        const embeddings = await AiService.generateBatchEmbeddings(texts);
+
+        chunk.forEach((product, idx) => {
+          points.push({
             id: product.id,
-            name: product.name,
-            description: product.description,
-            categoryId: product.categoryId,
-            categoryName: product.category?.name,
-            images: product.images,
-            minPrice: product.variants.length > 0 ? Math.min(...product.variants.map((v: any) => parseFloat(v.price))) : 0,
-            maxPrice: product.variants.length > 0 ? Math.max(...product.variants.map((v: any) => parseFloat(v.price))) : 0,
-          },
+            vector: embeddings[idx],
+            payload: {
+              id: product.id,
+              name: product.name,
+              description: product.description,
+              categoryId: product.categoryId,
+              categoryName: product.category?.name,
+              images: product.images,
+              minPrice: product.variants.length > 0 ? Math.min(...product.variants.map((v: any) => parseFloat(v.price))) : 0,
+              maxPrice: product.variants.length > 0 ? Math.max(...product.variants.map((v: any) => parseFloat(v.price))) : 0,
+            },
+          });
         });
       }
 

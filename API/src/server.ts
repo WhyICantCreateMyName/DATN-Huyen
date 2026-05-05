@@ -69,6 +69,19 @@ app.use('/api/admin/users', userController);
 app.use('/api/admin/messages', adminMessageController);
 app.use('/api/admin', adminController);
 
+// AI Indexing Endpoint (Chủ động đánh chỉ mục)
+app.post('/api/admin/index-products', async (req, res) => {
+    try {
+        const { QdrantService } = require('./services/qdrant.service');
+        console.log('🚀 Manual AI Indexing triggered...');
+        await QdrantService.indexAllProducts(true); // Force re-index
+        res.json({ success: true, message: 'AI Indexing completed successfully' });
+    } catch (error: any) {
+        console.error('AI Indexing Error:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 // Health check
 app.get('/health', (req, res) => {
     res.json({ status: 'ok', timestamp: new Date(), database: 'connected' });
@@ -78,8 +91,12 @@ app.get('/health', (req, res) => {
 io.on('connection', (socket) => {
     console.log('User connected:', socket.id);
 
-    socket.on('join', (userId: string) => {
+    socket.on('join', ({ userId, role }: { userId: string; role?: string }) => {
         socket.join(`user:${userId}`);
+        if (role === 'ADMIN') {
+            socket.join('admins');
+            console.log(`Admin ${userId} joined admins room`);
+        }
         console.log(`User ${userId} joined room`);
     });
 
@@ -96,8 +113,13 @@ io.on('connection', (socket) => {
                 }
             });
 
-            io.to(`user:${receiverId}`).emit('message', newMessage);
-            console.log(`Message from ${senderId} to ${receiverId} persisted and emitted`);
+            if (receiverId) {
+                io.to(`user:${receiverId}`).emit('message', newMessage);
+            } else {
+                // Broadcast to all admins if no specific receiver
+                io.to('admins').emit('message', newMessage);
+            }
+            console.log(`Message from ${senderId} to ${receiverId || 'Broadcast'} persisted and emitted`);
         } catch (error) {
             console.error('Socket message error:', error);
         }
@@ -115,24 +137,10 @@ async function startServer() {
         await prisma.$connect();
         console.log('✅ Prisma connected to PostgreSQL successfully.');
 
-        // Initialize AI Search (Qdrant)
-        try {
-            const { QdrantService } = require('./services/qdrant.service');
-            console.log('🤖 Initializing AI Search Service...');
-            
-            if (process.env.SKIP_AI_INDEXING === 'true') {
-                console.log('ℹ️ AI Indexing skipped via environment variable.');
-            } else {
-                await QdrantService.indexAllProducts();
-            }
-        } catch (aiError) {
-            console.error('⚠️ Warning: AI Search Service failed to initialize:', aiError);
-            console.log('   (Continuing server startup without AI search)');
-        }
-
         httpServer.listen(PORT, () => {
             console.log(`🚀 API Server is running on http://localhost:${PORT}`);
             console.log(`🏥 Health check: http://localhost:${PORT}/health`);
+            console.log(`🤖 AI Manual Sync: POST http://localhost:${PORT}/api/admin/index-products`);
         });
     } catch (error) {
         console.error('❌ Unable to start server:', error);

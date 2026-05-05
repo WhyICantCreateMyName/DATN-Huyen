@@ -52,7 +52,7 @@ export function extractBudget(message: string): { min: number | null; max: numbe
  */
 export function analyzeIntent(message: string): Intent {
   const lowerMessage = message.toLowerCase();
-  
+
   const intent: Intent = {
     type: 'general',
     sentiment: 'neutral',
@@ -60,8 +60,8 @@ export function analyzeIntent(message: string): Intent {
     keywords: []
   };
 
-  const hasProductKeyword = /giày|sneaker|áo|quần|váy|đầm|phụ kiện|nam|nữ|thể thao/.test(lowerMessage);
-  const hasSearchAction = /tìm|kiếm|có|muốn mua|xem|giá|gợi ý|tư vấn|phù hợp/.test(lowerMessage);
+  const hasProductKeyword = /giày|sneaker|dép|guốc|sandal|boots|áo|quần|váy|đầm|phụ kiện|nam|nữ|thể thao|bơi|bikini|vest|yếm|khoác|len|sơ mi|polo|hoodie|sweater|cardigan|jeans|khaki|short|lót|ngủ|túi|ví|kính|nón|mũ|tất|vớ|thắt lưng|bộ đồ|jumpsuit/.test(lowerMessage);
+  const hasSearchAction = /tìm|kiếm|có|muốn mua|xem|giá|gợi ý|tư vấn|phù hợp|đề xuất|mẫu|hàng|ngắm|lấy|chọn/.test(lowerMessage);
 
   if (hasProductKeyword && (hasSearchAction || lowerMessage.split(/\s+/).length <= 10)) {
     intent.type = 'product_search';
@@ -75,7 +75,15 @@ export function analyzeIntent(message: string): Intent {
     intent.sentiment = 'negative';
   }
 
-  const productKeywords = ["giày", "áo", "quần", "váy", "đầm", "nam", "nữ", "thể thao", "cao cấp"];
+  const productKeywords = [
+    "giày", "sneaker", "dép", "guốc", "sandal", "boots",
+    "áo", "quần", "váy", "đầm", "phụ kiện", "nam", "nữ",
+    "thể thao", "cao cấp", "bơi", "bikini", "vest", "yếm",
+    "khoác", "len", "sơ mi", "polo", "hoodie", "sweater",
+    "cardigan", "jeans", "khaki", "short", "lót", "ngủ",
+    "túi", "ví", "kính", "nón", "mũ", "tất", "vớ", "thắt lưng",
+    "bộ đồ", "jumpsuit"
+  ];
   intent.keywords = productKeywords.filter(kw => lowerMessage.includes(kw));
 
   return intent;

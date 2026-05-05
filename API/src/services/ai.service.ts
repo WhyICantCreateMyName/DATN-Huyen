@@ -38,6 +38,22 @@ export class AiService {
   }
 
   /**
+   * Generate multiple embeddings in one request (Batch)
+   * Faster and saves quota
+   */
+  static async generateBatchEmbeddings(texts: string[]): Promise<number[][]> {
+    try {
+      const result = await this.embeddingModel.batchEmbedContents({
+        requests: texts.map(t => ({ content: { role: 'user', parts: [{ text: t }] } }))
+      });
+      return result.embeddings.map(e => e.values);
+    } catch (error) {
+      console.error('Gemini Batch Embedding Error:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Create the system prompt (Ported from legacy bot)
    */
   static getSystemPrompt(): string {
@@ -58,10 +74,14 @@ export class AiService {
                 6. KHÔNG được tưởng tượng hoặc đoán tên sản phẩm (Nike Air Max, Yeezy, v.v. nếu không có trong danh sách).
                 
                 FORMAT GỢI Ý SẢN PHẨM (BẮT BUỘC):
-                - Sử dụng format:
-                   **[Tên SP CHÍNH XÁC](URL CHÍNH XÁC)**
-                   ![IMG](URL_ẢNH CHÍNH XÁC)
-                   - Giá: [Giá từ danh sách]
+                - Khi gợi ý sản phẩm, bạn PHẢI sử dụng format sau để hệ thống hiển thị được:
+                  [PRODUCT_CARD]
+                  NAME: [Tên sản phẩm chính xác]
+                  PRICE: [Giá sản phẩm]
+                  LINK: [URL sản phẩm từ context]
+                  IMAGE: [URL ảnh sản phẩm từ context]
+                  [/PRODUCT_CARD]
+                - Bạn vẫn có thể viết lời dẫn giải ở trên hoặc dưới khối này.
                 
                 XỬ LÝ TRƯỜNG HỢP ĐẶC BIỆT:
                 1. **NẾU CONTEXT NÓI "KHÔNG TÌM THẤY SẢN PHẨM"**: Xin lỗi và gợi ý:
