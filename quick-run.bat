@@ -1,29 +1,36 @@
 @echo off
-setlocal
+setlocal enabledelayedexpansion
 
 set ROOT_DIR=%~dp0
 cd /d %ROOT_DIR%
 
-:: Check if Docker containers are running
-where docker >nul 2>nul
+echo [INFO] Starting Yuki Fashion Ecosystem...
+
+:: Check for pnpm
+where pnpm >nul 2>nul
 if %ERRORLEVEL% equ 0 (
-    echo [INFO] Ensuring Docker containers are up...
-    docker-compose up -d
+    set PKG_MGR=pnpm
+) else (
+    set PKG_MGR=npm
 )
 
-echo.
-echo [1/2] Starting Backend API (Integrated AI)...
-start "backend" cmd /k "cd /d %ROOT_DIR%API && npm run dev"
+:: Start Backend in a new window
+echo [1/3] Starting API (Port 5000)...
+start "API Server" cmd /k "cd /d %ROOT_DIR%API && %PKG_MGR% run dev"
 
-echo [2/2] Starting Frontend Web (Next.js)...
-start "admin" cmd /k "cd /d %ROOT_DIR%admin && npm run dev"
+:: Start Admin in a new window
+echo [2/3] Starting Admin Dashboard (Port 3000)...
+start "Admin Dashboard" cmd /k "cd /d %ROOT_DIR%admin && %PKG_MGR% run dev"
+
+:: Start Storefront Client in a new window
+echo [3/3] Starting Storefront Client (Port 4000)...
+start "Storefront Client" cmd /k "cd /d %ROOT_DIR%client && %PKG_MGR% run dev -p 4000"
 
 echo.
 echo ==========================================
-echo  Frontend: http://localhost:3000
-echo  Backend:  http://localhost:5000
-echo  (AI is integrated into Backend)
+echo [SUCCESS] All systems are booting up!
+echo - API: http://localhost:5000
+echo - Admin: http://localhost:3000
+echo - Client: http://localhost:4000
 echo ==========================================
-echo.
-echo [DONE] Services are starting in separate windows.
-pause > nul
+pause
