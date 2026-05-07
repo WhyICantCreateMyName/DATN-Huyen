@@ -2,6 +2,7 @@ import { Router, Response } from 'express';
 import prisma from '../lib/prisma';
 import { authenticate, AuthRequest, isAdmin } from '../middleware/auth.middleware';
 import { successResponse, ErrorResponses } from '../utils/response';
+import { toAbsoluteUrls, getBaseUrl } from '../utils/url';
 
 const router = Router();
 
@@ -106,7 +107,7 @@ router.get('/dashboard-stats', async (req: AuthRequest, res: Response) => {
           id: item.variantId,
           name: variant?.product.name,
           category: variant?.product.category?.name,
-          images: variant?.product.images ? JSON.parse(variant.product.images) : [],
+          images: variant?.product.images ? toAbsoluteUrls(JSON.parse(variant.product.images), getBaseUrl(req)) : [],
           sales: item._sum.quantity,
           price: Number(variant?.price || 0)
         };

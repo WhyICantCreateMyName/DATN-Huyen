@@ -3,6 +3,7 @@ import prisma from '../lib/prisma';
 import { authenticate, AuthRequest } from '../middleware/auth.middleware';
 import { successResponse, errorResponse, ErrorResponses } from '../utils/response';
 import { addToCartSchema, updateCartItemSchema } from '../utils/validations';
+import { toAbsoluteUrls, getBaseUrl } from '../utils/url';
 
 const router = Router();
 
@@ -50,13 +51,14 @@ router.get('/', async (req: AuthRequest, res: Response) => {
       });
     }
 
+    const baseUrl = getBaseUrl(req);
     const items = cart.items.map((item: any) => ({
       ...item,
       variant: {
         ...item.variant,
         product: {
           ...item.variant.product,
-          images: JSON.parse(item.variant.product.images),
+          images: toAbsoluteUrls(JSON.parse(item.variant.product.images), baseUrl),
         },
       },
     }));

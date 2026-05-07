@@ -2,6 +2,7 @@ import { Router, Response } from 'express';
 import prisma from '../lib/prisma';
 import { authenticate, AuthRequest } from '../middleware/auth.middleware';
 import { successResponse, ErrorResponses } from '../utils/response';
+import { toAbsoluteUrls, getBaseUrl } from '../utils/url';
 
 const router = Router();
 
@@ -23,7 +24,11 @@ router.get('/', authenticate, async (req: AuthRequest, res: Response) => {
       orderBy: { createdAt: 'desc' }
     });
 
-    const products = wishlist.map(item => item.product);
+    const baseUrl = getBaseUrl(req);
+    const products = wishlist.map(item => ({
+      ...item.product,
+      images: toAbsoluteUrls(JSON.parse(item.product.images), baseUrl)
+    }));
     return successResponse(res, products);
   } catch (error) {
     console.error('Get wishlist error:', error);

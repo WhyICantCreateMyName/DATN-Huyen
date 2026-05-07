@@ -3,7 +3,7 @@ import prisma from '../lib/prisma';
 import { Prisma } from '@prisma/client';
 import { authenticate, isAdmin } from '../middleware/auth.middleware';
 import { successResponse, ErrorResponses } from '../utils/response';
-import { toAbsoluteUrls, getBaseUrl } from '../utils/url';
+import { toAbsoluteUrls, getBaseUrl, toRelativePaths } from '../utils/url';
 import { createProductSchema, updateProductSchema } from '../utils/validations';
 
 const router = Router();
@@ -160,7 +160,7 @@ router.post('/', authenticate, isAdmin, async (req: Request, res: Response) => {
     const product = await prisma.product.create({
       data: {
         ...data,
-        images: JSON.stringify(images),
+        images: JSON.stringify(toRelativePaths(images)),
         variants: variants ? {
           create: variants.map(v => ({
             size: v.size,
@@ -201,7 +201,7 @@ router.put('/:id', authenticate, isAdmin, async (req: Request, res: Response) =>
     const result = await prisma.$transaction(async (tx) => {
       const updateData: any = { ...data };
       if (images) {
-        updateData.images = JSON.stringify(images);
+        updateData.images = JSON.stringify(toRelativePaths(images));
       }
 
       const product = await tx.product.update({

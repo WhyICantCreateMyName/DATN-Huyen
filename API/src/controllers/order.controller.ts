@@ -4,6 +4,7 @@ import { Prisma, OrderStatus, PaymentStatus } from '@prisma/client';
 import { authenticate, AuthRequest, isAdmin } from '../middleware/auth.middleware';
 import { successResponse, errorResponse, ErrorResponses } from '../utils/response';
 import { createOrderSchema, updateOrderStatusSchema, updatePaymentStatusSchema } from '../utils/validations';
+import { toAbsoluteUrls, getBaseUrl } from '../utils/url';
 
 const router = Router();
 
@@ -135,6 +136,7 @@ router.get('/', async (req: AuthRequest, res: Response) => {
       orderBy: { createdAt: 'desc' }
     });
 
+    const baseUrl = getBaseUrl(req);
     const result = orders.map((order: any) => ({
       ...order,
       items: order.items.map((item: any) => ({
@@ -143,7 +145,7 @@ router.get('/', async (req: AuthRequest, res: Response) => {
           ...item.variant,
           product: {
             ...item.variant.product,
-            images: JSON.parse(item.variant.product.images),
+            images: toAbsoluteUrls(JSON.parse(item.variant.product.images), baseUrl),
           }
         }
       }))
@@ -183,6 +185,7 @@ router.get('/:id', async (req: AuthRequest, res: Response) => {
       return ErrorResponses.notFound(res, 'Order');
     }
 
+    const baseUrl = getBaseUrl(req);
     const result = {
       ...order,
       items: order.items.map((item: any) => ({
@@ -191,7 +194,7 @@ router.get('/:id', async (req: AuthRequest, res: Response) => {
           ...item.variant,
           product: {
             ...item.variant.product,
-            images: JSON.parse(item.variant.product.images),
+            images: toAbsoluteUrls(JSON.parse(item.variant.product.images), baseUrl),
           }
         }
       }))
@@ -251,14 +254,16 @@ router.get('/admin/list', isAdmin, async (req: AuthRequest, res: Response) => {
       prisma.order.count({ where })
     ]);
 
+    const baseUrl = getBaseUrl(req);
     const formattedOrders = orders.map((order: any) => ({
       ...order,
       items: order.items.map((item: any) => {
         let images = [];
         try {
-          images = typeof item.variant.product.images === 'string'
+          const rawImages = typeof item.variant.product.images === 'string'
             ? JSON.parse(item.variant.product.images)
             : item.variant.product.images;
+          images = toAbsoluteUrls(rawImages, baseUrl);
         } catch (e) {
           images = [];
         }

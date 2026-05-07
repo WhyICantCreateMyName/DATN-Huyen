@@ -1,6 +1,7 @@
 import express from 'express';
 import prisma from '../lib/prisma';
 import { authenticate, isAdmin } from '../middleware/auth.middleware';
+import { toAbsoluteUrls, getBaseUrl, toRelativePaths } from '../utils/url';
 
 const router = express.Router();
 
@@ -11,7 +12,17 @@ router.get('/', async (req, res) => {
             where: { isActive: true },
             orderBy: { createdAt: 'desc' }
         });
-        res.json({ success: true, data: sliders });
+
+        const baseUrl = getBaseUrl(req);
+        const formattedSliders = sliders.map(slider => ({
+            ...slider,
+            items: (slider.items as any[]).map(item => ({
+                ...item,
+                image: toAbsoluteUrls([item.image], baseUrl)[0]
+            }))
+        }));
+
+        res.json({ success: true, data: formattedSliders });
     } catch (error) {
         res.status(500).json({ success: false, error: 'Internal Server Error' });
     }
@@ -23,7 +34,17 @@ router.get('/admin', authenticate, isAdmin, async (req, res) => {
         const sliders = await prisma.bannerSlider.findMany({
             orderBy: { createdAt: 'desc' }
         });
-        res.json({ success: true, data: sliders });
+
+        const baseUrl = getBaseUrl(req);
+        const formattedSliders = sliders.map(slider => ({
+            ...slider,
+            items: (slider.items as any[]).map(item => ({
+                ...item,
+                image: toAbsoluteUrls([item.image], baseUrl)[0]
+            }))
+        }));
+
+        res.json({ success: true, data: formattedSliders });
     } catch (error) {
         res.status(500).json({ success: false, error: 'Internal Server Error' });
     }
@@ -32,10 +53,16 @@ router.get('/admin', authenticate, isAdmin, async (req, res) => {
 // Admin: Create slider
 router.post('/', authenticate, isAdmin, async (req, res) => {
     try {
+        const items = req.body.items || [];
+        const relativeItems = items.map((item: any) => ({
+            ...item,
+            image: toRelativePaths([item.image])[0]
+        }));
+
         const slider = await prisma.bannerSlider.create({
             data: {
                 name: req.body.name || "Main Slider",
-                items: req.body.items || [],
+                items: relativeItems,
                 isActive: req.body.isActive !== undefined ? req.body.isActive : true
             }
         });
@@ -48,9 +75,17 @@ router.post('/', authenticate, isAdmin, async (req, res) => {
 // Admin: Update slider
 router.put('/:id', authenticate, isAdmin, async (req, res) => {
     try {
+        const updateData = { ...req.body };
+        if (updateData.items) {
+            updateData.items = updateData.items.map((item: any) => ({
+                ...item,
+                image: toRelativePaths([item.image])[0]
+            }));
+        }
+
         const slider = await prisma.bannerSlider.update({
             where: { id: req.params.id },
-            data: req.body
+            data: updateData
         });
         res.json({ success: true, data: slider });
     } catch (error) {

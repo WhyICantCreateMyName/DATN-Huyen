@@ -6,14 +6,38 @@
  */
 export function toAbsoluteUrls(images: string[], baseUrl: string): string[] {
   return images.map((url) => {
-    // If already absolute URL, return as is
+    // If URL contains localhost, replace it with the current baseUrl
+    if (url.includes('localhost')) {
+      return url.replace(/http:\/\/localhost:\d+/, baseUrl);
+    }
+
+    // If already absolute URL (and not localhost), return as is
     if (url.startsWith('http://') || url.startsWith('https://')) {
       return url;
     }
 
     // Convert relative URL to absolute
     const cleanUrl = url.startsWith('/') ? url.substring(1) : url;
-    return `${baseUrl}/api/${cleanUrl}`;
+    const finalBase = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+    return `${finalBase}/api/${cleanUrl}`;
+  });
+}
+
+/**
+ * Convert absolute URLs back to relative paths for storage
+ */
+export function toRelativePaths(images: string[]): string[] {
+  return images.map((url) => {
+    // If it contains /api/uploads/, extract just uploads/...
+    const match = url.match(/\/api\/(uploads\/.+)$/);
+    if (match) return match[1];
+    
+    // If it's a full localhost/ngrok URL but not matched above, try a simpler split
+    if (url.includes('/uploads/')) {
+      return 'uploads/' + url.split('/uploads/')[1];
+    }
+
+    return url;
   });
 }
 
@@ -21,12 +45,20 @@ export function toAbsoluteUrls(images: string[], baseUrl: string): string[] {
  * Get base URL from request or environment
  */
 export function getBaseUrl(req?: any): string {
-  // If request is provided, use it to detect URL (useful for ngrok/proxies)
+  // 1. If request is provided, try to detect public URL from headers
   if (req) {
-    return `${req.protocol}://${req.get('host')}`;
+    const host = req.get('host');
+    const protocol = req.protocol;
+
+    // If accessed via localhost but we have a BASE_URL in env that is public, use it
+    if (host.includes('localhost') && process.env.BASE_URL && !process.env.BASE_URL.includes('localhost')) {
+      return process.env.BASE_URL;
+    }
+
+    return `${protocol}://${host}`;
   }
 
-  // Fallback to environment variable
+  // 2. Fallback to environment variable
   if (process.env.BASE_URL) {
     return process.env.BASE_URL;
   }

@@ -69,14 +69,26 @@ router.post('/', authenticate, upload.single('humanImage'), async (req: AuthRequ
 
     const baseUrl = getBaseUrl(req);
     const absoluteGarmentUrls = toAbsoluteUrls([garmentImage], baseUrl);
-    const finalGarmentUrl = absoluteGarmentUrls[0];
+    let finalGarmentUrl = absoluteGarmentUrls[0];
 
-    console.log('--- New VTO Request (Multipart) ---');
-    console.log('Human Image URL:', finalHumanImageUrl);
-    console.log('Garment Image URL:', finalGarmentUrl);
+    // CRITICAL: Ensure URLs sent to Replicate are public (no localhost)
+    if (finalHumanImageUrl.includes('localhost') && process.env.BASE_URL) {
+      finalHumanImageUrl = finalHumanImageUrl.replace(/http:\/\/localhost:\d+/, process.env.BASE_URL);
+    }
+    if (finalGarmentUrl.includes('localhost') && process.env.BASE_URL) {
+      finalGarmentUrl = finalGarmentUrl.replace(/http:\/\/localhost:\d+/, process.env.BASE_URL);
+    }
+
+    console.log('--- [VTO DEBUG] Sending to Replicate ---');
+    console.log('Final Human Image URL:', finalHumanImageUrl);
+    console.log('Final Garment Image URL:', finalGarmentUrl);
+    console.log('Description:', description || 'clothing item');
     console.log('Category:', category || 'upper_body');
 
     const result = await ReplicateService.virtualTryOn(finalHumanImageUrl, finalGarmentUrl, description, category);
+
+    console.log('--- [VTO DEBUG] Success ---');
+    console.log('Generated Result URL (AI):', result ? ((result as string).length > 100 ? (result as string).substring(0, 100) + '...' : result) : 'NULL');
 
     return successResponse(res, {
       imageUrl: result,

@@ -4,6 +4,7 @@ import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import { authenticate } from '../middleware/auth.middleware';
 import { successResponse, errorResponse, ErrorResponses } from '../utils/response';
+import { getBaseUrl } from '../utils/url';
 
 const router = Router();
 
@@ -43,8 +44,7 @@ router.post('/', authenticate, upload.array('files', 10), (req: Request, res: Re
       return errorResponse(res, 'Không có file được upload', 400);
     }
 
-    const baseUrl = process.env.BASE_URL || `${req.protocol}://${req.get('host')}`;
-    const fileUrls = files.map((file) => `${baseUrl}/api/uploads/${file.filename}`);
+    const fileUrls = files.map((file) => `uploads/${file.filename}`);
     
     return successResponse(res, { 
       files: fileUrls,
