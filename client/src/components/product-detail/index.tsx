@@ -14,7 +14,8 @@ import {
   RotateCcw,
   Star,
   Plus,
-  Minus
+  Minus,
+  Sparkles
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
@@ -23,6 +24,7 @@ import { useToast } from "@/contexts/ToastContext";
 import { useWishlist } from "@/contexts/WishlistContext";
 import { reviewService } from "@/services/review.service";
 import { useAuth } from "@/contexts/AuthContext";
+import TryOnModal from "@/components/product/TryOnModal";
 
 interface ProductDetailComponentProps {
   id: string;
@@ -37,6 +39,7 @@ export default function ProductDetailComponent({ id }: ProductDetailComponentPro
   const [selectedImage, setSelectedImage] = useState(0);
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
   const [quantity, setQuantity] = useState(1);
+  const [isTryOnModalOpen, setIsTryOnModalOpen] = useState(false);
 
   // Review states
   const [reviewRating, setReviewRating] = useState(5);
@@ -281,6 +284,12 @@ export default function ProductDetailComponent({ id }: ProductDetailComponentPro
           {/* Action Buttons */}
           <div className="flex flex-col sm:flex-row gap-4 mb-12">
             <button
+              onClick={() => setIsTryOnModalOpen(true)}
+              className="flex-1 bg-accent text-black py-5 rounded-[2rem] font-black uppercase tracking-widest hover:scale-[1.02] active:scale-95 transition-all shadow-xl shadow-accent/20 flex items-center justify-center gap-3"
+            >
+              <Sparkles className="w-5 h-5" /> Thử đồ AI ✨
+            </button>
+            <button
               onClick={handleAddToCart}
               className="flex-1 bg-black text-white py-5 rounded-[2rem] font-black uppercase tracking-widest hover:bg-slate-800 transition-all shadow-xl shadow-black/10 flex items-center justify-center gap-3"
             >
@@ -482,6 +491,20 @@ export default function ProductDetailComponent({ id }: ProductDetailComponentPro
           ))}
         </div>
       </section>
+      {product && (
+        <TryOnModal
+          isOpen={isTryOnModalOpen}
+          onClose={() => setIsTryOnModalOpen(false)}
+          productName={product.name}
+          garmentImage={images[selectedImage]}
+          category={(() => {
+            const slug = product.category?.slug?.toLowerCase() || '';
+            if (slug.includes('quan') || slug.includes('pant') || slug.includes('short') || slug.includes('chan-vay')) return 'lower_body';
+            if (slug.includes('vay') || slug.includes('dress') || slug.includes('set')) return 'dresses';
+            return 'upper_body';
+          })()}
+        />
+      )}
     </div>
   );
 }

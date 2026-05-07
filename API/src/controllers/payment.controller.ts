@@ -29,6 +29,9 @@ router.post('/vnpay/create', authenticate, async (req: AuthRequest, res: Respons
     const orderInfo = `Thanh toan don hang ${orderId}`;
 
     const paymentUrl = createPaymentUrl(orderId, amount, orderInfo, ipAddr);
+    
+    console.log('--- VNPAY DEBUG ---');
+    console.log('Final URL:', paymentUrl);
 
     return successResponse(res, { paymentUrl });
   } catch (error) {

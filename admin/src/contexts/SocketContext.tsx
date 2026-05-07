@@ -25,7 +25,7 @@ export const SocketProvider = ({ children }: { children: ReactNode }) => {
     // Only connect if user is authenticated
     if (!user?.id) return;
 
-    const socketUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+    const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:5000';
     const newSocket = io(socketUrl, {
       transports: ['websocket'],
     });
