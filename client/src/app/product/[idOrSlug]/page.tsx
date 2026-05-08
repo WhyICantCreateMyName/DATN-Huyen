@@ -5,13 +5,13 @@ import ProductDetailComponent from "@/components/product-detail";
 import { productService } from "@/services/product.service";
 
 interface Props {
-  params: Promise<{ id: string }>;
+  params: Promise<{ idOrSlug: string }>;
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const { id } = await params;
+  const { idOrSlug } = await params;
   try {
-    const res = await productService.getProduct(id);
+    const res = await productService.getProduct(idOrSlug);
     const product = res.data.data;
     
     return {
@@ -31,12 +31,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default async function ProductPage({ params }: Props) {
-  const { id } = await params;
+  const { idOrSlug } = await params;
   
   return (
     <main className="min-h-screen bg-white">
       <Navbar />
-      <ProductDetailComponent id={id} />
+      <ProductDetailComponent idOrSlug={idOrSlug} />
     </main>
   );
 }

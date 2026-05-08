@@ -12,17 +12,23 @@ export const loginSchema = z.object({
   password: z.string().min(1, 'Mật khẩu không được để trống'),
 });
 
-// ============ CATEGORY SCHEMAS ============
-export const createCategorySchema = z.object({
-  name: z.string().min(2, 'Tên danh mục phải có ít nhất 2 ký tự'),
+// ============ COLLECTION SCHEMAS ============
+export const createCollectionSchema = z.object({
+  name: z.string().min(2, 'Tên bộ sưu tập phải có ít nhất 2 ký tự'),
   slug: z.string().optional(),
   description: z.string().optional(),
+  image: z.string().optional(),
+  isActive: z.boolean().optional().default(true),
+  productIds: z.array(z.string().uuid()).optional(),
 });
 
-export const updateCategorySchema = z.object({
+export const updateCollectionSchema = z.object({
   name: z.string().min(2).optional(),
   slug: z.string().optional(),
   description: z.string().optional(),
+  image: z.string().optional(),
+  isActive: z.boolean().optional(),
+  productIds: z.array(z.string().uuid()).optional(),
 });
 
 // ============ PRODUCT SCHEMAS ============
@@ -36,17 +42,21 @@ const variantItemSchema = z.object({
 
 export const createProductSchema = z.object({
   name: z.string().min(2, 'Tên sản phẩm phải có ít nhất 2 ký tự'),
+  slug: z.string().optional(),
   description: z.string().optional(),
   images: z.array(z.string()).optional().default([]),
   categoryId: z.string().uuid('Category ID không hợp lệ'),
+  collectionIds: z.array(z.string().uuid()).optional(),
   variants: z.array(variantItemSchema).min(1, 'Cần ít nhất 1 biến thể').optional(),
 });
 
 export const updateProductSchema = z.object({
   name: z.string().min(2).optional(),
+  slug: z.string().optional(),
   description: z.string().optional(),
   images: z.array(z.string()).optional(),
   categoryId: z.string().uuid().optional(),
+  collectionIds: z.array(z.string().uuid()).optional(),
   variants: z.array(variantItemSchema).optional(),
 });
 

@@ -56,6 +56,9 @@ export default function BannerModule() {
   // Local Edits State (Drafts)
   const [localEdits, setLocalEdits] = useState<Record<string, BannerType.BannerSlider>>({});
 
+  // Local Pending Files State
+  const [pendingFiles, setPendingFiles] = useState<Record<string, {file: File, preview: string}[]>>({});
+
   const handleToggleStatus = async (slider: BannerType.BannerSlider) => {
     await updateBanner({ id: slider.id, data: { isActive: !slider.isActive } });
   };
@@ -64,49 +67,114 @@ export default function BannerModule() {
 
   const handleCreateSlider = async () => {
     if (!newName.trim()) {
-      toast({
-        title: "Thiếu thông tin",
-        message: "Vui lòng nhập tên cho Banner",
-        variant: "error"
-      });
+      toast({ title: "Thiếu thông tin", message: "Vui lòng nhập tên cho Banner", variant: "error" });
       return;
     }
 
     if (newItems.length === 0) {
-      toast({
-        title: "Thiếu hình ảnh",
-        message: "Banner cần ít nhất một hình ảnh",
-        variant: "error"
-      });
+      toast({ title: "Thiếu hình ảnh", message: "Banner cần ít nhất một hình ảnh", variant: "error" });
       return;
     }
 
-    try {
-      await createBanner({
-        name: newName,
-        items: newItems,
-        isActive: true
-      });
-      setIsAdding(false);
-      setNewName("");
-      setNewItems([]);
-    } catch (error) {
-      console.error("Create error:", error);
-    }
+    // Capture data
+    const dataToSave = {
+      name: newName,
+      items: [...newItems],
+      pending: [...(pendingFiles["new"] || [])]
+    };
+
+    // Close and reset immediately
+    setIsAdding(false);
+    setExpandedId(null);
+    setNewName("");
+    setNewItems([]);
+    setPendingFiles(prev => {
+      const next = { ...prev };
+      delete next["new"];
+      return next;
+    });
+
+    toast({ title: "Đang xử lý", message: "Đang tạo Banner mới...", variant: "tip" });
+
+    // Background process
+    (async () => {
+      try {
+        let uploadedUrls: string[] = [];
+        if (dataToSave.pending.length > 0) {
+          const res = await uploadService.uploadMultiple(dataToSave.pending.map(p => p.file));
+          uploadedUrls = res.data.data.files;
+        }
+
+        let uploadedIdx = 0;
+        const finalItems = dataToSave.items.map(item => {
+          if (item.image.startsWith('blob:')) {
+            return { ...item, image: uploadedUrls[uploadedIdx++] };
+          }
+          return item;
+        });
+
+        await createBanner({
+          name: dataToSave.name,
+          items: finalItems,
+          isActive: true
+        });
+        
+        toast({ title: "Thành công", message: "Đã tạo Banner mới", variant: "success" });
+      } catch (error) {
+        console.error("Create error:", error);
+        toast({ title: "Lỗi", message: "Không thể tạo Banner", variant: "error" });
+      }
+    })();
   };
 
   const handleSaveLocalEdit = async (sliderId: string) => {
     const draft = localEdits[sliderId];
     if (!draft) return;
-    try {
-      await updateBanner({ id: sliderId, data: draft });
-      // Remove from local edits after success
-      const newEdits = { ...localEdits };
-      delete newEdits[sliderId];
-      setLocalEdits(newEdits);
-    } catch (error) {
-      console.error("Save error:", error);
-    }
+
+    // Capture data
+    const dataToSave = {
+      sliderId,
+      draft: { ...draft },
+      pending: [...(pendingFiles[sliderId] || [])]
+    };
+
+    // Close immediately
+    setExpandedId(null);
+    const newEdits = { ...localEdits };
+    delete newEdits[sliderId];
+    setLocalEdits(newEdits);
+    setPendingFiles(prev => {
+      const next = { ...prev };
+      delete next[sliderId];
+      return next;
+    });
+
+    toast({ title: "Đang xử lý", message: "Đang cập nhật Banner...", variant: "tip" });
+
+    // Background process
+    (async () => {
+      try {
+        let uploadedUrls: string[] = [];
+        if (dataToSave.pending.length > 0) {
+          const res = await uploadService.uploadMultiple(dataToSave.pending.map(p => p.file));
+          uploadedUrls = res.data.data.files;
+        }
+
+        let uploadedIdx = 0;
+        const finalItems = dataToSave.draft.items.map(item => {
+          if (item.image.startsWith('blob:')) {
+            return { ...item, image: uploadedUrls[uploadedIdx++] };
+          }
+          return item;
+        });
+
+        await updateBanner({ id: dataToSave.sliderId, data: { ...dataToSave.draft, items: finalItems } });
+        toast({ title: "Thành công", message: "Đã cập nhật Banner", variant: "success" });
+      } catch (error) {
+        console.error("Save error:", error);
+        toast({ title: "Lỗi", message: "Không thể lưu Banner", variant: "error" });
+      }
+    })();
   };
 
   const updateDraft = (sliderId: string, original: BannerType.BannerSlider, data: Partial<BannerType.BannerSlider>) => {
@@ -127,33 +195,35 @@ export default function BannerModule() {
   };
 
   const handleUploadImages = async (files: FileList, isNew: boolean, slider: BannerType.BannerSlider) => {
-    setIsUploading(true);
-    try {
-      const fileArray = Array.from(files);
-      const uploadPromises = fileArray.map(file => uploadService.uploadSingle(file));
-      const urls = await Promise.all(uploadPromises);
+    const fileArray = Array.from(files);
+    const sliderId = isNew ? "new" : slider.id;
+    
+    const newPendingItems = fileArray.map(file => ({
+      file,
+      preview: URL.createObjectURL(file)
+    }));
 
-      const addedItems = urls.map(url => ({
-        title: "Tiêu đề Banner",
-        subtitle: "",
-        description: "",
-        image: url,
-        link: "/products",
-        backgroundColor: "#ffffff",
-        accentColor: "#6366f1"
-      }));
+    setPendingFiles(prev => ({
+      ...prev,
+      [sliderId]: [...(prev[sliderId] || []), ...newPendingItems]
+    }));
 
-      if (isNew) {
-        setNewItems(prev => [...prev, ...addedItems].slice(0, 10));
-      } else {
-        const currentItems = localEdits[slider.id]?.items || slider.items || [];
-        const updatedItems = [...currentItems, ...addedItems].slice(0, 10);
-        updateDraft(slider.id, slider, { items: updatedItems });
-      }
-    } catch (error) {
-      console.error("Upload error:", error);
-    } finally {
-      setIsUploading(false);
+    const addedItems = newPendingItems.map(item => ({
+      title: "Tiêu đề Banner",
+      subtitle: "",
+      description: "",
+      image: item.preview,
+      link: "/products",
+      backgroundColor: "#ffffff",
+      accentColor: "#6366f1"
+    }));
+
+    if (isNew) {
+      setNewItems(prev => [...prev, ...addedItems].slice(0, 10));
+    } else {
+      const currentItems = localEdits[slider.id]?.items || slider.items || [];
+      const updatedItems = [...currentItems, ...addedItems].slice(0, 10);
+      updateDraft(slider.id, slider, { items: updatedItems });
     }
   };
 

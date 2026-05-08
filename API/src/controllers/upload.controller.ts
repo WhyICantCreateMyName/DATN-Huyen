@@ -44,7 +44,8 @@ router.post('/', authenticate, upload.array('files', 10), (req: Request, res: Re
       return errorResponse(res, 'Không có file được upload', 400);
     }
 
-    const fileUrls = files.map((file) => `uploads/${file.filename}`);
+    const baseUrl = getBaseUrl(req);
+    const fileUrls = files.map((file) => `${baseUrl}/api/uploads/${file.filename}`);
     
     return successResponse(res, { 
       files: fileUrls,

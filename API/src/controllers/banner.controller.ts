@@ -66,7 +66,15 @@ router.post('/', authenticate, isAdmin, async (req, res) => {
                 isActive: req.body.isActive !== undefined ? req.body.isActive : true
             }
         });
-        res.json({ success: true, data: slider });
+        const baseUrl = getBaseUrl(req);
+        const formattedSlider = {
+            ...slider,
+            items: (slider.items as any[]).map(item => ({
+                ...item,
+                image: toAbsoluteUrls([item.image], baseUrl)[0]
+            }))
+        };
+        res.json({ success: true, data: formattedSlider });
     } catch (error) {
         res.status(500).json({ success: false, error: 'Internal Server Error' });
     }
@@ -87,7 +95,15 @@ router.put('/:id', authenticate, isAdmin, async (req, res) => {
             where: { id: req.params.id },
             data: updateData
         });
-        res.json({ success: true, data: slider });
+        const baseUrl = getBaseUrl(req);
+        const formattedSlider = {
+            ...slider,
+            items: (slider.items as any[]).map(item => ({
+                ...item,
+                image: toAbsoluteUrls([item.image], baseUrl)[0]
+            }))
+        };
+        res.json({ success: true, data: formattedSlider });
     } catch (error) {
         res.status(500).json({ success: false, error: 'Internal Server Error' });
     }

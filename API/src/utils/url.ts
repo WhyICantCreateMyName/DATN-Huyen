@@ -26,8 +26,14 @@ export function toAbsoluteUrls(images: string[], baseUrl: string): string[] {
 /**
  * Convert absolute URLs back to relative paths for storage
  */
-export function toRelativePaths(images: string[]): string[] {
-  return images.map((url) => {
+export function toRelativePaths(images: any[]): string[] {
+  return images.map((img) => {
+    // If it's an object from the new upload API { path, url }, take the path
+    if (img && typeof img === 'object' && img.path) {
+      return img.path;
+    }
+
+    const url = String(img);
     // If it contains /api/uploads/, extract just uploads/...
     const match = url.match(/\/api\/(uploads\/.+)$/);
     if (match) return match[1];

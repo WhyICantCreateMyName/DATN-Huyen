@@ -27,17 +27,18 @@ import { useAuth } from "@/contexts/AuthContext";
 import TryOnModal from "@/components/product/TryOnModal";
 
 interface ProductDetailComponentProps {
-  id: string;
+  idOrSlug: string;
 }
 
-export default function ProductDetailComponent({ id }: ProductDetailComponentProps) {
-  const { product, isLoading, isError, mutate } = useProductDetail(id);
+export default function ProductDetailComponent({ idOrSlug }: ProductDetailComponentProps) {
+  const { product, isLoading, isError, mutate } = useProductDetail(idOrSlug);
   const { addItem } = useCart();
   const { toast } = useToast();
   const { user } = useAuth();
   const { isInWishlist, toggleWishlist } = useWishlist();
   const [selectedImage, setSelectedImage] = useState(0);
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
+  const [selectedColor, setSelectedColor] = useState<string | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [isTryOnModalOpen, setIsTryOnModalOpen] = useState(false);
 
@@ -60,7 +61,7 @@ export default function ProductDetailComponent({ id }: ProductDetailComponentPro
     setIsSubmittingReview(true);
     try {
       await reviewService.createReview({
-        productId: id,
+        productId: product!.id,
         rating: reviewRating,
         comment: reviewComment
       });
@@ -75,16 +76,16 @@ export default function ProductDetailComponent({ id }: ProductDetailComponentPro
   };
 
   const handleAddToCart = () => {
-    if (!selectedSize) {
+    if (!selectedSize || !selectedColor) {
       toast({
         title: "Thông báo",
-        message: "Vui lòng chọn kích cỡ trước khi thêm vào giỏ hàng.",
+        message: "Vui lòng chọn đầy đủ kích cỡ và màu sắc.",
         variant: "warning"
       });
       return;
     }
 
-    const variant = product?.variants?.find(v => v.size === selectedSize);
+    const variant = product?.variants?.find(v => v.size === selectedSize && v.color === selectedColor);
     if (variant) {
       if (variant.stock < quantity) {
         toast({
@@ -201,7 +202,7 @@ export default function ProductDetailComponent({ id }: ProductDetailComponentPro
               {product.name}
             </h1>
             <p className="text-3xl font-bold text-accent">
-              {minPrice.toLocaleString('vi-VN')} <span className="text-sm align-top mt-1 inline-block">₫</span>
+              {(product?.variants?.find(v => v.size === selectedSize && v.color === selectedColor)?.price || minPrice).toLocaleString('vi-VN')} <span className="text-sm align-top mt-1 inline-block">₫</span>
             </p>
           </div>
 
@@ -220,23 +221,54 @@ export default function ProductDetailComponent({ id }: ProductDetailComponentPro
               </div>
               <div className="flex flex-wrap gap-3">
                 {Array.from(new Set(product.variants?.map(v => v.size))).sort().map(size => {
-                  const variant = product.variants?.find(v => v.size === size);
-                  const isOutOfStock = variant ? variant.stock <= 0 : true;
+                  // If a color is selected, check if this size is available for that color
+                  const isAvailableForColor = selectedColor
+                    ? product.variants?.some(v => v.size === size && v.color === selectedColor && v.stock > 0)
+                    : product.variants?.some(v => v.size === size && v.stock > 0);
 
                   return (
                     <button
                       key={size}
-                      disabled={isOutOfStock}
+                      disabled={!isAvailableForColor}
                       onClick={() => setSelectedSize(size)}
                       className={cn(
                         "w-14 h-14 rounded-2xl text-sm font-black transition-all flex items-center justify-center border",
                         selectedSize === size
                           ? "bg-black text-white border-black shadow-xl"
                           : "bg-white text-slate-400 border-slate-100 hover:border-black hover:text-black",
-                        isOutOfStock && "opacity-20 cursor-not-allowed line-through"
+                        !isAvailableForColor && "opacity-20 cursor-not-allowed line-through"
                       )}
                     >
                       {size}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <h4 className="text-[10px] font-black uppercase tracking-widest text-black">Chọn màu sắc</h4>
+              <div className="flex flex-wrap gap-3">
+                {Array.from(new Set(product.variants?.map(v => v.color))).map(color => {
+                  // If a size is selected, check if this color is available for that size
+                  const isAvailableForSize = selectedSize
+                    ? product.variants?.some(v => v.color === color && v.size === selectedSize && v.stock > 0)
+                    : product.variants?.some(v => v.color === color && v.stock > 0);
+
+                  return (
+                    <button
+                      key={color}
+                      disabled={!isAvailableForSize}
+                      onClick={() => setSelectedColor(color)}
+                      className={cn(
+                        "px-6 h-12 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border",
+                        selectedColor === color
+                          ? "bg-black text-white border-black shadow-xl"
+                          : "bg-white text-slate-400 border-slate-100 hover:border-black hover:text-black",
+                        !isAvailableForSize && "opacity-20 cursor-not-allowed line-through"
+                      )}
+                    >
+                      {color}
                     </button>
                   );
                 })}
@@ -268,13 +300,13 @@ export default function ProductDetailComponent({ id }: ProductDetailComponentPro
                     <Plus className="w-4 h-4" />
                   </button>
                 </div>
-                {selectedSize ? (
+                {selectedSize && selectedColor ? (
                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                    Chỉ còn {product.variants?.find(v => v.size === selectedSize)?.stock || 0} sản phẩm
+                    Chỉ còn {product.variants?.find(v => v.size === selectedSize && v.color === selectedColor)?.stock || 0} sản phẩm
                   </p>
                 ) : (
                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                    Vui lòng chọn size
+                    {!selectedSize ? "Vui lòng chọn size" : "Vui lòng chọn màu"}
                   </p>
                 )}
               </div>
@@ -299,10 +331,10 @@ export default function ProductDetailComponent({ id }: ProductDetailComponentPro
               onClick={() => product && toggleWishlist(product)}
               className={cn(
                 "w-16 h-16 bg-white border border-slate-100 rounded-[2rem] flex items-center justify-center transition-all group",
-                isInWishlist(id) ? "text-rose-500 border-rose-100 shadow-lg shadow-rose-100" : "text-slate-400 hover:text-rose-500 hover:border-rose-500"
+                isInWishlist(product!.id) ? "text-rose-500 border-rose-100 shadow-lg shadow-rose-100" : "text-slate-400 hover:text-rose-500 hover:border-rose-500"
               )}
             >
-              <Heart className={cn("w-6 h-6 transition-all", isInWishlist(id) ? "fill-current scale-110" : "group-hover:fill-current")} />
+              <Heart className={cn("w-6 h-6 transition-all", isInWishlist(product!.id) ? "fill-current scale-110" : "group-hover:fill-current")} />
             </button>
             <button
               onClick={() => {
@@ -486,7 +518,7 @@ export default function ProductDetailComponent({ id }: ProductDetailComponentPro
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-10">
-          {relatedProducts.filter(p => p.id !== id).slice(0, 4).map(p => (
+          {relatedProducts.filter(p => p.id !== product!.id).slice(0, 4).map(p => (
             <ProductCard key={p.id} product={p} />
           ))}
         </div>

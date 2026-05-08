@@ -3,7 +3,7 @@ import prisma from '../lib/prisma';
 import { Prisma } from '@prisma/client';
 import { authenticate, isAdmin } from '../middleware/auth.middleware';
 import { successResponse, ErrorResponses } from '../utils/response';
-import { toAbsoluteUrls, getBaseUrl, toRelativePaths } from '../utils/url';
+import { toAbsoluteUrls, getBaseUrl, toRelativePaths, slugify } from '../utils/url';
 import { createProductSchema, updateProductSchema } from '../utils/validations';
 
 const router = Router();
@@ -40,6 +40,9 @@ router.get('/', async (req: Request, res: Response) => {
           },
           reviews: {
             select: { rating: true }
+          },
+          collections: {
+            select: { id: true, name: true, slug: true }
           }
         },
         orderBy: { createdAt: 'desc' },
@@ -79,13 +82,18 @@ router.get('/', async (req: Request, res: Response) => {
   }
 });
 
-// GET /api/products/:id
-router.get('/:id', async (req: Request, res: Response) => {
+// GET /api/products/:idOrSlug
+router.get('/:idOrSlug', async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    const { idOrSlug } = req.params;
 
-    const product = await prisma.product.findUnique({
-      where: { id },
+    const product = await prisma.product.findFirst({
+      where: {
+        OR: [
+          { id: idOrSlug },
+          { slug: idOrSlug }
+        ]
+      },
       include: {
         category: {
           select: { id: true, name: true, slug: true }
@@ -104,6 +112,9 @@ router.get('/:id', async (req: Request, res: Response) => {
         },
         _count: {
           select: { reviews: true }
+        },
+        collections: {
+          select: { id: true, name: true, slug: true }
         }
       },
     });
@@ -115,7 +126,7 @@ router.get('/:id', async (req: Request, res: Response) => {
     // Group reviews by rating for the chart
     const ratingStats = await prisma.review.groupBy({
       by: ['rating'],
-      where: { productId: id },
+      where: { productId: product.id },
       _count: true
     });
 
@@ -156,10 +167,11 @@ router.post('/', authenticate, isAdmin, async (req: Request, res: Response) => {
       return ErrorResponses.validationError(res, validation.error.issues[0].message);
     }
 
-    const { images, variants, ...data } = validation.data;
+    const { images, variants, collectionIds, ...data } = validation.data;
     const product = await prisma.product.create({
       data: {
         ...data,
+        slug: data.slug || slugify(data.name),
         images: JSON.stringify(toRelativePaths(images)),
         variants: variants ? {
           create: variants.map(v => ({
@@ -168,16 +180,20 @@ router.post('/', authenticate, isAdmin, async (req: Request, res: Response) => {
             price: v.price,
             stock: v.stock,
           }))
+        } : undefined,
+        collections: collectionIds ? {
+          connect: collectionIds.map(id => ({ id }))
         } : undefined
       },
-      include: { category: true, variants: true },
+      include: { category: true, variants: true, collections: true },
     });
 
+    const baseUrl = getBaseUrl(req);
     return successResponse(
       res,
       {
         ...product,
-        images: JSON.parse(product.images),
+        images: toAbsoluteUrls(JSON.parse(product.images), baseUrl),
       },
       201,
     );
@@ -196,18 +212,29 @@ router.put('/:id', authenticate, isAdmin, async (req: Request, res: Response) =>
       return ErrorResponses.validationError(res, validation.error.issues[0].message);
     }
 
-    const { images, variants, ...data } = validation.data;
+      const { images, variants, collectionIds, ...data } = validation.data;
 
     const result = await prisma.$transaction(async (tx) => {
       const updateData: any = { ...data };
+      
+      if (updateData.name && !updateData.slug) {
+        updateData.slug = slugify(updateData.name);
+      }
+
       if (images) {
         updateData.images = JSON.stringify(toRelativePaths(images));
+      }
+
+      if (collectionIds) {
+        updateData.collections = {
+          set: collectionIds.map(id => ({ id }))
+        };
       }
 
       const product = await tx.product.update({
         where: { id },
         data: updateData,
-        include: { category: true, variants: true },
+        include: { category: true, variants: true, collections: true },
       });
 
       if (variants) {
@@ -253,9 +280,10 @@ router.put('/:id', authenticate, isAdmin, async (req: Request, res: Response) =>
 
     if (!result) return ErrorResponses.notFound(res, 'Product');
 
+    const baseUrl = getBaseUrl(req);
     return successResponse(res, {
       ...result,
-      images: JSON.parse(result.images),
+      images: toAbsoluteUrls(JSON.parse(result.images), baseUrl),
     });
   } catch (error) {
     console.error('Admin Update product error:', error);

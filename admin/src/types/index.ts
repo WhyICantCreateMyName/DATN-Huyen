@@ -10,6 +10,7 @@ export * as DashboardType from './dashboard';
 export * as CustomerType from './customer';
 export * as UploadType from './upload';
 export * as BannerType from './banner';
+export * as CollectionType from './collection';
 
 export interface ApiResponse<T> {
   success: boolean;

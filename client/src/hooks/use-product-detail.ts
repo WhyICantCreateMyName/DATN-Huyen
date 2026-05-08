@@ -2,11 +2,11 @@ import useSWR from 'swr';
 import { productService } from '@/services/product.service';
 import { ProductType } from '@/types';
 
-export const useProductDetail = (id: string) => {
+export const useProductDetail = (idOrSlug: string) => {
   const { data, error, isLoading, mutate } = useSWR(
-    id ? `product-${id}` : null,
+    idOrSlug ? `product-${idOrSlug}` : null,
     async () => {
-      const result = await productService.getProduct(id);
+      const result = await productService.getProduct(idOrSlug);
       return result.data.data as ProductType.Product;
     },
     {

@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCart } from "@/contexts/CartContext";
+import { useProduct } from "@/hooks/use-product";
 
 export default function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -14,6 +15,14 @@ export default function Navbar() {
   const [mounted, setMounted] = useState(false);
   const { user, logout } = useAuth();
   const { totalItems } = useCart();
+
+  // Search states
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const { products: searchResults, isLoading: isSearching } = useProduct({
+    search: searchQuery,
+    limit: 5
+  });
 
   useEffect(() => {
     setMounted(true);
@@ -67,9 +76,104 @@ export default function Navbar() {
         </div>
 
         <div className="flex items-center gap-3">
-          <button className="p-2.5 rounded-full hover:bg-slate-50 transition-colors">
-            <Search className="w-5 h-5 text-slate-900" />
-          </button>
+          <div className="relative">
+            <button 
+              onClick={() => setIsSearchOpen(!isSearchOpen)}
+              className="p-2.5 rounded-full hover:bg-slate-50 transition-colors"
+            >
+              <Search className="w-5 h-5 text-slate-900" />
+            </button>
+
+            {/* Search Dropdown Overlay */}
+            <AnimatePresence>
+              {isSearchOpen && (
+                <>
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                    className="absolute top-full right-0 mt-3 w-[350px] md:w-[450px] bg-white border border-slate-100 rounded-[2.5rem] shadow-2xl shadow-black/10 p-6 z-50"
+                  >
+                    <div className="relative mb-6">
+                      <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                      <input
+                        autoFocus
+                        type="text"
+                        placeholder="Tìm kiếm sản phẩm..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="w-full bg-slate-50 border-none rounded-2xl py-4 pl-12 pr-4 text-sm font-bold placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-black/5 transition-all"
+                      />
+                    </div>
+
+                    <div className="space-y-4">
+                      <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-2">Kết quả tìm kiếm</h4>
+                      
+                      <div className="max-h-[300px] overflow-y-auto no-scrollbar space-y-2">
+                        {isSearching ? (
+                          <div className="py-10 text-center">
+                            <div className="w-6 h-6 border-2 border-slate-900 border-t-transparent rounded-full animate-spin mx-auto" />
+                          </div>
+                        ) : searchQuery && searchResults.length > 0 ? (
+                          searchResults.map((product) => (
+                            <Link
+                              key={product.id}
+                              href={`/product/${product.slug || product.id}`}
+                              onClick={() => {
+                                setIsSearchOpen(false);
+                                setSearchQuery("");
+                              }}
+                              className="flex items-center gap-4 p-2 hover:bg-slate-50 rounded-2xl transition-all group"
+                            >
+                              <div className="w-16 h-16 bg-slate-100 rounded-xl overflow-hidden flex-shrink-0">
+                                <img 
+                                  src={product.images[0]} 
+                                  alt={product.name} 
+                                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" 
+                                />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <h5 className="text-xs font-black text-slate-900 truncate uppercase tracking-tighter">
+                                  {product.name}
+                                </h5>
+                                <p className="text-[10px] font-bold text-accent">
+                                  {Math.min(...product.variants.map(v => Number(v.price))).toLocaleString('vi-VN')} ₫
+                                </p>
+                              </div>
+                            </Link>
+                          ))
+                        ) : searchQuery ? (
+                          <div className="py-10 text-center">
+                            <p className="text-xs font-bold text-slate-400">Không tìm thấy sản phẩm nào</p>
+                          </div>
+                        ) : (
+                          <div className="py-10 text-center">
+                            <p className="text-xs font-bold text-slate-400 italic">Nhập tên sản phẩm để tìm kiếm...</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {searchQuery && searchResults.length >= 5 && (
+                      <Link
+                        href={`/products?search=${searchQuery}`}
+                        onClick={() => setIsSearchOpen(false)}
+                        className="block w-full mt-6 py-4 text-center text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-black transition-colors border-t border-slate-50"
+                      >
+                        Xem tất cả kết quả
+                      </Link>
+                    )}
+                  </motion.div>
+                  {/* Backdrop for closing */}
+                  <div 
+                    className="fixed inset-0 z-40"
+                    onClick={() => setIsSearchOpen(false)}
+                  />
+                </>
+              )}
+            </AnimatePresence>
+          </div>
+
           <Link href="/cart" className="p-2.5 rounded-full hover:bg-slate-50 transition-colors relative">
             <ShoppingBag className="w-5 h-5 text-slate-900" />
             {totalItems > 0 && (

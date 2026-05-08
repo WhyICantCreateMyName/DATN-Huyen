@@ -29,6 +29,7 @@ export interface ProductVariant {
 export interface Product {
   id: string;
   name: string;
+  slug: string;
   description?: string;
   images: string[];
   categoryId: string;
@@ -44,6 +45,7 @@ export interface Product {
 
 export interface CreateProductInput {
   name: string;
+  slug?: string;
   description?: string;
   images: string[];
   categoryId: string;
@@ -58,6 +60,7 @@ export interface CreateProductInput {
 
 export interface UpdateProductInput {
   name?: string;
+  slug?: string;
   description?: string;
   images?: string[];
   categoryId?: string;

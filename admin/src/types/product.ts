@@ -1,4 +1,5 @@
 import { Category } from './category';
+import { Collection } from './collection';
 
 export interface ProductVariant {
   id: string;
@@ -15,17 +16,20 @@ export interface ProductVariant {
 export interface Product {
   id: string;
   name: string;
+  slug: string;
   description?: string;
   images: string[];
   categoryId: string;
   category?: Category;
   variants: ProductVariant[];
+  collections?: Collection[];
   createdAt: string;
   updatedAt: string;
 }
 
 export interface CreateProductInput {
   name: string;
+  slug?: string;
   description?: string;
   images: string[];
   categoryId: string;
@@ -36,10 +40,12 @@ export interface CreateProductInput {
     price: number;
     stock: number;
   }[];
+  collectionIds?: string[];
 }
 
 export interface UpdateProductInput {
   name?: string;
+  slug?: string;
   description?: string;
   images?: string[];
   categoryId?: string;
@@ -50,6 +56,7 @@ export interface UpdateProductInput {
     price: number;
     stock: number;
   }[];
+  collectionIds?: string[];
 }
 
 export interface CreateVariantInput {

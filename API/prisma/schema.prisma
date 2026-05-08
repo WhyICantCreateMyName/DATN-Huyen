@@ -53,6 +53,7 @@ model Category {
 model Product {
   id          String           @id @default(uuid())
   name        String
+  slug        String           @unique
   description String?          @db.Text
   images      String           @db.Text // Store as JSON string
   categoryId  String
@@ -63,8 +64,24 @@ model Product {
   variants    ProductVariant[]
   reviews     Review[]
   wishlists   Wishlist[]
+  collections Collection[]     @relation("ProductCollections")
 
   @@map("products")
+}
+
+model Collection {
+  id          String    @id @default(uuid())
+  name        String
+  slug        String    @unique
+  description String?   @db.Text
+  image       String?   @db.Text
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  products    Product[] @relation("ProductCollections")
+
+  @@map("collections")
 }
 
 model Wishlist {

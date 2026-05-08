@@ -14,6 +14,7 @@ import { uploadService } from "@/services/upload.service";
 import { useToast } from "@/contexts/ToastContext";
 import { useVariantForm } from "@/hooks/use-variant";
 import { useCategory } from "@/hooks/use-category";
+import { useCollection } from "@/hooks/use-collection";
 import { useProductActions } from "@/hooks/use-product";
 import { Product } from "@/types/product";
 import { SearchableSelect } from "@/components/ui/select/SearchableSelect";
@@ -40,7 +41,15 @@ export function ProductFormModule({ initialData, isEdit = false, onClose, onSucc
   const [name, setName] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [description, setDescription] = useState("");
-  const [images, setImages] = useState<string[]>([]);
+  const [existingImages, setExistingImages] = useState<string[]>([]);
+  const [newImages, setNewImages] = useState<{file: File, preview: string}[]>([]);
+  const [selectedCollectionIds, setSelectedCollectionIds] = useState<string[]>([]);
+  const [collectionSearch, setCollectionSearch] = useState("");
+
+  const { data: allCollections, isLoading: isLoadingCollections } = useCollection({
+    search: collectionSearch,
+    limit: 50
+  });
 
   const {
     variants,
@@ -62,7 +71,8 @@ export function ProductFormModule({ initialData, isEdit = false, onClose, onSucc
         ? JSON.parse(initialData.images)
         : initialData.images;
     }
-    setImages(imagesData);
+    setExistingImages(imagesData);
+    setNewImages([]); // Reset new files
 
     if (initialData?.variants) {
       setVariants(initialData.variants.map(v => ({
@@ -75,31 +85,34 @@ export function ProductFormModule({ initialData, isEdit = false, onClose, onSucc
     } else {
       setVariants([{ size: "", color: "", price: "", stock: "" }]);
     }
+
+    if (initialData?.collections) {
+      setSelectedCollectionIds(initialData.collections.map(c => c.id));
+    } else {
+      setSelectedCollectionIds([]);
+    }
   }, [initialData, setVariants]);
 
-  const handleImageUpload = async (files: FileList) => {
-    setUploading(true);
-    try {
-      const res = await uploadService.uploadMultiple(Array.from(files));
-      setImages(prev => [...prev, ...res.data.data.files]);
-      toast({
-        title: "Thành công",
-        message: `Đã tải lên ${res.data.data.count} hình ảnh`,
-        variant: "success"
-      });
-    } catch (err) {
-      toast({
-        title: "Lỗi",
-        message: "Không thể tải lên hình ảnh",
-        variant: "error"
-      });
-    } finally {
-      setUploading(false);
-    }
+  const handleImageSelect = async (files: FileList) => {
+    const fileArray = Array.from(files);
+    const newItems = fileArray.map(file => ({
+      file,
+      preview: URL.createObjectURL(file)
+    }));
+    setNewImages(prev => [...prev, ...newItems]);
   };
 
   const removeImage = (index: number) => {
-    setImages(prev => prev.filter((_, i) => i !== index));
+    if (index < existingImages.length) {
+      setExistingImages(prev => prev.filter((_, i) => i !== index));
+    } else {
+      const newIdx = index - existingImages.length;
+      setNewImages(prev => {
+        const item = prev[newIdx];
+        if (item) URL.revokeObjectURL(item.preview);
+        return prev.filter((_, i) => i !== newIdx);
+      });
+    }
   };
 
   const { createProduct, updateProduct, isCreating, isUpdating, mutate } = useProductActions();
@@ -108,52 +121,75 @@ export function ProductFormModule({ initialData, isEdit = false, onClose, onSucc
   const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
 
-    if (!name || !categoryId || images.length === 0) {
-      toast({
-        title: "Lưu ý",
-        message: "Vui lòng điền đủ thông tin và có ít nhất 1 ảnh",
-        variant: "warning"
-      });
+    const allCurrentImages = [...existingImages, ...newImages.map(n => n.preview)];
+
+    if (!name || !categoryId || allCurrentImages.length === 0) {
+      toast({ title: "Lưu ý", message: "Vui lòng điền đủ thông tin và có ít nhất 1 ảnh", variant: "warning" });
       return;
     }
 
     if (!validateVariants()) {
-      toast({
-        title: "Lưu ý",
-        message: "Vui lòng điền đầy đủ thông tin cho tất cả các biến thể",
-        variant: "warning"
-      });
+      toast({ title: "Lưu ý", message: "Vui lòng điền đầy đủ thông tin cho tất cả các biến thể", variant: "warning" });
       return;
     }
 
-    try {
-      const productData = {
-        name,
-        categoryId,
-        description,
-        images,
-        variants: variants.map(v => ({
-          id: v.id,
-          size: v.size,
-          color: v.color,
-          price: parseFloat(v.price),
-          stock: parseInt(v.stock)
-        }))
-      };
+    // Capture data for background task
+    const dataToSave = {
+      name,
+      categoryId,
+      description,
+      existingImages,
+      newImages,
+      selectedCollectionIds,
+      variants: [...variants]
+    };
 
-      if (isEdit && initialData?.id) {
-        await updateProduct({ id: initialData.id, data: productData });
-      } else {
-        await createProduct(productData);
+    // Close modal immediately
+    onClose();
+    toast({ title: "Đang xử lý", message: "Đang chuẩn bị dữ liệu và tải ảnh...", variant: "tip" });
+
+    // Background process
+    (async () => {
+      try {
+        // 1. Upload new files if any
+        let uploadedUrls: string[] = [];
+        if (dataToSave.newImages.length > 0) {
+          const res = await uploadService.uploadMultiple(dataToSave.newImages.map(n => n.file));
+          uploadedUrls = res.data.data.files;
+        }
+
+        // 2. Combine existing with newly uploaded
+        const finalImages = [...dataToSave.existingImages, ...uploadedUrls];
+
+        const productData = {
+          name: dataToSave.name,
+          categoryId: dataToSave.categoryId,
+          description: dataToSave.description,
+          images: finalImages,
+          collectionIds: dataToSave.selectedCollectionIds,
+          variants: dataToSave.variants.map(v => ({
+            id: v.id,
+            size: v.size,
+            color: v.color,
+            price: parseFloat(v.price),
+            stock: parseInt(v.stock)
+          }))
+        };
+
+        if (isEdit && initialData?.id) {
+          await updateProduct({ id: initialData.id, data: productData });
+        } else {
+          await createProduct(productData);
+        }
+
+        mutate((key: any) => Array.isArray(key) && (key[0] === 'products' || key[0] === 'variants'));
+        if (onSuccess) onSuccess();
+        toast({ title: "Thành công", message: "Đã lưu sản phẩm", variant: "success" });
+      } catch (err: any) {
+        console.error(err);
+        toast({ title: "Lỗi", message: "Không thể lưu sản phẩm. Vui lòng kiểm tra lại.", variant: "error" });
       }
-
-      mutate((key: any) => Array.isArray(key) && (key[0] === 'products' || key[0] === 'variants'));
-
-      if (onSuccess) onSuccess();
-      onClose();
-    } catch (err: any) {
-      console.error(err);
-    }
+    })();
   };
 
   const headerActions = (
@@ -207,6 +243,44 @@ export function ProductFormModule({ initialData, isEdit = false, onClose, onSucc
                   isLoading={isLoadingCategories}
                   placeholder="Tìm kiếm và chọn danh mục..."
                 />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-bold text-zinc-600 dark:text-zinc-400 ml-1">Bộ sưu tập</label>
+                <div className="space-y-3">
+                  <SearchableSelect
+                    options={allCollections.map(col => ({ label: col.name, value: col.id }))}
+                    value=""
+                    onChange={(val) => {
+                      if (val && !selectedCollectionIds.includes(val as string)) {
+                        setSelectedCollectionIds([...selectedCollectionIds, val as string]);
+                      }
+                    }}
+                    onSearch={setCollectionSearch}
+                    isLoading={isLoadingCollections}
+                    placeholder="Thêm vào bộ sưu tập..."
+                  />
+                  
+                  {selectedCollectionIds.length > 0 && (
+                    <div className="flex flex-wrap gap-2 pt-1">
+                      {selectedCollectionIds.map(id => {
+                        const col = allCollections.find(c => c.id === id) || initialData?.collections?.find(c => c.id === id);
+                        return (
+                          <div key={id} className="inline-flex items-center gap-2 px-3 py-1.5 bg-violet-50 dark:bg-violet-500/10 text-violet-600 dark:text-violet-400 rounded-xl text-xs font-bold border border-violet-100 dark:border-violet-500/20">
+                            <span>{col?.name || "Đang tải..."}</span>
+                            <button
+                              type="button"
+                              onClick={() => setSelectedCollectionIds(selectedCollectionIds.filter(i => i !== id))}
+                              className="hover:text-violet-900 dark:hover:text-violet-200 transition-colors"
+                            >
+                              <Plus className="w-3 h-3 rotate-45" />
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div className="space-y-2">
@@ -314,8 +388,8 @@ export function ProductFormModule({ initialData, isEdit = false, onClose, onSucc
             </div>
 
             <ImagePicker
-              images={images}
-              onUpload={(files) => handleImageUpload(files as any)}
+              images={[...existingImages, ...newImages.map(n => n.preview)]}
+              onUpload={(files) => handleImageSelect(files as any)}
               onRemove={removeImage}
               isLoading={uploading}
             />

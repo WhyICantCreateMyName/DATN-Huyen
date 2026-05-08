@@ -39,7 +39,7 @@ export default function ProductCard({ product }: ProductCardProps) {
   };
 
   return (
-    <Link href={`/product/${product.id}`} className="group cursor-pointer">
+    <Link href={`/product/${product.slug || product.id}`} className="group cursor-pointer">
       <div className="aspect-[3/4] bg-slate-100 rounded-[2.5rem] mb-6 overflow-hidden relative shadow-sm transition-all duration-500 group-hover:shadow-2xl group-hover:-translate-y-2">
         {/* Hover Actions */}
         <div className="absolute top-6 right-6 w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-lg scale-0 transition-transform duration-500 group-hover:scale-100 z-10">

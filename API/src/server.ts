@@ -27,6 +27,7 @@ import uploadController from './controllers/upload.controller';
 import variantController from './controllers/variant.controller';
 import wishlistController from './controllers/wishlist.controller';
 import reviewController from './controllers/review.controller';
+import collectionController from './controllers/collection.controller';
 
 const allowedOrigins = process.env.CORS_ORIGIN
     ? process.env.CORS_ORIGIN.split(',').map(o => o.trim())
@@ -73,6 +74,7 @@ app.use('/api/payment', paymentController);
 app.use('/api/upload', uploadController);
 app.use('/api/wishlist', wishlistController);
 app.use('/api/reviews', reviewController);
+app.use('/api/collections', collectionController);
 
 // Admin Routes
 app.use('/api/admin/variants', variantController);

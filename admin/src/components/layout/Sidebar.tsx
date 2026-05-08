@@ -17,7 +17,8 @@ import {
   Package,
   Layers,
   CreditCard,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Sparkles
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
@@ -26,6 +27,7 @@ const menuItems = [
   { icon: LayoutDashboard, label: "Tổng quan", href: "/" },
   { icon: Package, label: "Sản phẩm", href: "/product" },
   { icon: Layers, label: "Danh mục", href: "/category" },
+  { icon: Sparkles, label: "Bộ sưu tập", href: "/collection" },
   { icon: ShoppingBag, label: "Đơn hàng", href: "/order" },
   { icon: CreditCard, label: "Nhập hàng", href: "/purchase" },
   { icon: Users, label: "Khách hàng", href: "/customer" },
