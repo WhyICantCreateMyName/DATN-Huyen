@@ -4,8 +4,9 @@ import { slugify } from '../utils/url';
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('🚀 Starting to populate product slugs...');
-  
+  console.log('🚀 Đang bắt đầu cập nhật slug cho sản phẩm...');
+
+  // Lấy tất cả sản phẩm chưa có slug hoặc slug trống
   const products = await prisma.product.findMany({
     where: {
       OR: [
@@ -15,17 +16,17 @@ async function main() {
     }
   });
 
-  console.log(`Found ${products.length} products needing slugs.`);
+  console.log(`Tìm thấy ${products.length} sản phẩm cần cập nhật.`);
 
   for (const product of products) {
     const baseSlug = slugify(product.name);
     let uniqueSlug = baseSlug;
     let counter = 1;
 
-    // Check for collision
+    // Xử lý trùng lặp slug
     while (true) {
       const collision = await prisma.product.findFirst({
-        where: { 
+        where: {
           slug: uniqueSlug,
           id: { not: product.id }
         }
@@ -40,15 +41,15 @@ async function main() {
       data: { slug: uniqueSlug }
     });
 
-    console.log(`✅ Updated: ${product.name} -> ${uniqueSlug}`);
+    console.log(`✅ Đã cập nhật: ${product.name} -> ${uniqueSlug}`);
   }
 
-  console.log('✨ All product slugs populated successfully!');
+  console.log('✨ Hoàn tất cập nhật slug cho tất cả sản phẩm!');
 }
 
 main()
   .catch((e) => {
-    console.error(e);
+    console.error('❌ Lỗi:', e);
     process.exit(1);
   })
   .finally(async () => {
