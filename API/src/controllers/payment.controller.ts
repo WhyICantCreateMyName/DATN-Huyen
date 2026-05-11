@@ -68,7 +68,8 @@ router.get('/vnpay/callback', async (req: Request, res: Response) => {
           where: { id: orderId },
           data: {
             paymentStatus: PaymentStatus.PAID,
-            status: OrderStatus.PROCESSING
+            status: OrderStatus.PROCESSING,
+            paymentMethod: 'VNPAY'
           }
         });
 

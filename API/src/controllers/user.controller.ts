@@ -24,7 +24,7 @@ router.get('/', async (req: AuthRequest, res: Response) => {
       ];
     }
 
-    const [users, total] = await Promise.all([
+    const [users, total, adminCount, userCount] = await Promise.all([
       prisma.user.findMany({
         where,
         select: {
@@ -38,13 +38,17 @@ router.get('/', async (req: AuthRequest, res: Response) => {
         skip: (pageNum - 1) * limitNum,
         take: limitNum,
       }),
-      prisma.user.count({ where })
+      prisma.user.count({ where }),
+      prisma.user.count({ where: { ...where, role: 'ADMIN' } }),
+      prisma.user.count({ where: { ...where, role: 'USER' } }),
     ]);
 
     return successResponse(res, {
       data: users,
       pagination: {
         total,
+        adminCount,
+        userCount,
         page: pageNum,
         limit: limitNum,
         totalPages: Math.ceil(total / limitNum),

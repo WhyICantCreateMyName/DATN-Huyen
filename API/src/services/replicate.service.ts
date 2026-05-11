@@ -18,7 +18,7 @@ export class ReplicateService {
   static async virtualTryOn(humanImage: string, garmentImage: string, description: string = "clothing item", category: string = "upper_body") {
     try {
       console.log('🚀 Starting Virtual Try-on process...');
-      
+
       const output = await replicate.run(
         "cuuupid/idm-vton:0513734a452173b8173e907e3a59d19a36266e55b48528559432bd21c7d7e985",
         {
@@ -37,7 +37,7 @@ export class ReplicateService {
       );
 
       console.log('✅ AI Generation completed, processing output...');
-      
+
       // The model returns a ReadableStream, we need to convert it to a buffer
       if (output instanceof ReadableStream) {
         const reader = output.getReader();

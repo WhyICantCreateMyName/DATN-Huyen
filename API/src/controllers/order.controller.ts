@@ -207,6 +207,41 @@ router.get('/:id', async (req: AuthRequest, res: Response) => {
   }
 });
 
+// PATCH /api/orders/:id/payment-method - Update Payment Method (User)
+router.patch('/:id/payment-method', async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { paymentMethod } = req.body;
+    const userId = req.user!.userId;
+
+    if (!['COD', 'VNPAY'].includes(paymentMethod)) {
+      return errorResponse(res, 'Phương thức thanh toán không hợp lệ', 400);
+    }
+
+    const order = await prisma.order.findFirst({
+      where: { id, userId }
+    });
+
+    if (!order) {
+      return ErrorResponses.notFound(res, 'Order');
+    }
+
+    if (order.paymentStatus === 'PAID') {
+      return errorResponse(res, 'Đơn hàng đã thanh toán không thể đổi phương thức', 400);
+    }
+
+    const updatedOrder = await prisma.order.update({
+      where: { id },
+      data: { paymentMethod }
+    });
+
+    return successResponse(res, updatedOrder);
+  } catch (error) {
+    console.error('Update payment method error:', error);
+    return ErrorResponses.internalError(res);
+  }
+});
+
 // ============ ADMIN ENDPOINTS ============
 
 // GET /api/orders/admin - List all orders (Admin)

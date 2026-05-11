@@ -11,8 +11,7 @@ const router = Router();
 // GET /api/products
 router.get('/', async (req: Request, res: Response) => {
   try {
-    const { categoryId, page = '1', limit = '12', search } = req.query;
-
+    const { categoryId, page = '1', limit = '12', search, minPrice, maxPrice } = req.query;
     const pageNum = parseInt(page as string);
     const limitNum = parseInt(limit as string);
 
@@ -24,6 +23,17 @@ router.get('/', async (req: Request, res: Response) => {
       where.name = {
         contains: search,
         mode: 'insensitive'
+      };
+    }
+
+    if (minPrice || maxPrice) {
+      where.variants = {
+        some: {
+          price: {
+            gte: minPrice ? parseFloat(minPrice as string) : undefined,
+            lte: maxPrice ? parseFloat(maxPrice as string) : undefined,
+          }
+        }
       };
     }
 

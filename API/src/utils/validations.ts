@@ -12,6 +12,21 @@ export const loginSchema = z.object({
   password: z.string().min(1, 'Mật khẩu không được để trống'),
 });
 
+// ============ CATEGORY SCHEMAS ============
+export const createCategorySchema = z.object({
+  name: z.string().min(2, 'Tên danh mục phải có ít nhất 2 ký tự'),
+  slug: z.string().optional(),
+  description: z.string().optional(),
+  image: z.string().optional(),
+});
+
+export const updateCategorySchema = z.object({
+  name: z.string().min(2).optional(),
+  slug: z.string().optional(),
+  description: z.string().optional(),
+  image: z.string().optional(),
+});
+
 // ============ COLLECTION SCHEMAS ============
 export const createCollectionSchema = z.object({
   name: z.string().min(2, 'Tên bộ sưu tập phải có ít nhất 2 ký tự'),

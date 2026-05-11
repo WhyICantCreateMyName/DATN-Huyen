@@ -3,7 +3,7 @@ import prisma from '../lib/prisma';
 import { authenticate, isAdmin } from '../middleware/auth.middleware';
 import { successResponse, ErrorResponses } from '../utils/response';
 import { createCollectionSchema, updateCollectionSchema } from '../utils/validations';
-import { slugify } from '../utils/url';
+import { slugify, toAbsoluteUrls, getBaseUrl } from '../utils/url';
 
 const router = Router();
 
@@ -80,7 +80,16 @@ router.get('/:idOrSlug', async (req: Request, res: Response) => {
       return ErrorResponses.notFound(res, 'Collection');
     }
 
-    return successResponse(res, collection);
+    const baseUrl = getBaseUrl(req);
+    const result = {
+      ...collection,
+      products: collection.products.map((product: any) => ({
+        ...product,
+        images: toAbsoluteUrls(JSON.parse(product.images), baseUrl)
+      }))
+    };
+
+    return successResponse(res, result);
   } catch (error) {
     console.error('Get collection error:', error);
     return ErrorResponses.internalError(res);

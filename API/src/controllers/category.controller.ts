@@ -79,17 +79,39 @@ router.post('/', authenticate, isAdmin, async (req: Request, res: Response) => {
       return ErrorResponses.validationError(res, validation.error.issues[0].message);
     }
 
+    const { name, slug: providedSlug, ...rest } = validation.data;
+
+    // 1. Check if name already exists for a clearer message
+    const existingName = await prisma.category.findFirst({
+      where: { name: { equals: name, mode: 'insensitive' } }
+    });
+    if (existingName) {
+      return ErrorResponses.badRequest(res, `Danh mục "${name}" đã tồn tại. Vui lòng chọn tên khác.`);
+    }
+
+    // 2. Generate unique slug
+    let slug = providedSlug || slugify(name);
+    let uniqueSlug = slug;
+    let counter = 1;
+
+    while (true) {
+      const existingSlug = await prisma.category.findUnique({
+        where: { slug: uniqueSlug }
+      });
+      if (!existingSlug) break;
+      uniqueSlug = `${slug}-${counter}`;
+      counter++;
+    }
+
     const category = await prisma.category.create({
       data: {
-        ...validation.data,
-        slug: validation.data.slug || slugify(validation.data.name)
+        ...rest,
+        name,
+        slug: uniqueSlug
       },
     });
     return successResponse(res, category, 201);
   } catch (error: any) {
-    if (error.code === 'P2002') {
-      return ErrorResponses.badRequest(res, 'Slug hoặc tên danh mục đã tồn tại');
-    }
     console.error('Admin Create category error:', error);
     return ErrorResponses.internalError(res);
   }
