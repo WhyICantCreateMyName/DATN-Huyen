@@ -13,6 +13,8 @@ export default function CollectionDetailPage() {
   const idOrSlug = params.idOrSlug as string;
   const { collection, isLoading } = useCollection(idOrSlug);
 
+  console.log("collection: ", collection);
+
   if (isLoading) {
     return (
       <main className="bg-white min-h-screen">

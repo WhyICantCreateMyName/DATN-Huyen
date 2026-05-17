@@ -220,7 +220,16 @@ export default function ProductDetailComponent({ idOrSlug }: ProductDetailCompon
                 <button className="text-[10px] font-black uppercase tracking-widest text-slate-400 border-b border-slate-200">Bảng size</button>
               </div>
               <div className="flex flex-wrap gap-3">
-                {Array.from(new Set(product.variants?.map(v => v.size))).sort().map(size => {
+                {Array.from(new Set(product.variants?.map(v => v.size))).sort((a, b) => {
+                  const sizePriority: Record<string, number> = {
+                    'FreeSize': 0, 'XS': 1, 'S': 2, 'M': 3, 'L': 4, 'XL': 5, 'XXL': 6, '2XL': 6, '3XL': 7, '4XL': 8
+                  };
+
+                  const pA = sizePriority[a.toUpperCase()] ?? (isNaN(Number(a)) ? 100 : Number(a));
+                  const pB = sizePriority[b.toUpperCase()] ?? (isNaN(Number(b)) ? 100 : Number(b));
+
+                  return pA - pB;
+                }).map(size => {
                   // If a color is selected, check if this size is available for that color
                   const isAvailableForColor = selectedColor
                     ? product.variants?.some(v => v.size === size && v.color === selectedColor && v.stock > 0)
@@ -249,7 +258,24 @@ export default function ProductDetailComponent({ idOrSlug }: ProductDetailCompon
             <div className="space-y-4">
               <h4 className="text-[10px] font-black uppercase tracking-widest text-black">Chọn màu sắc</h4>
               <div className="flex flex-wrap gap-3">
-                {Array.from(new Set(product.variants?.map(v => v.color))).map(color => {
+                {Array.from(new Set(product.variants?.map(v => v.color))).sort((a, b) => {
+                  const colorPriority: Record<string, number> = {
+                    'TRẮNG': 0, 'WHITE': 0, 'TRANG': 0,
+                    'ĐEN': 1, 'BLACK': 1, 'DEN': 1,
+                    'TÍM': 2, 'PURPLE': 2,
+                    'CHÀM': 3, 'INDIGO': 3,
+                    'XANH DƯƠNG': 4, 'BLUE': 4, 'LAM': 4,
+                    'XANH LÁ': 5, 'GREEN': 5, 'LỤC': 5,
+                    'VÀNG': 6, 'YELLOW': 6,
+                    'CAM': 7, 'ORANGE': 7,
+                    'ĐỎ': 8, 'RED': 8,
+                  };
+
+                  const pA = colorPriority[a.toUpperCase()] ?? 100;
+                  const pB = colorPriority[b.toUpperCase()] ?? 100;
+
+                  return pA - pB;
+                }).map(color => {
                   // If a size is selected, check if this color is available for that size
                   const isAvailableForSize = selectedSize
                     ? product.variants?.some(v => v.color === color && v.size === selectedSize && v.stock > 0)

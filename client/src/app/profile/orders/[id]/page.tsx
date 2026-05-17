@@ -8,6 +8,8 @@ import Navbar from '@/components/layout/Navbar';
 import { useOrderDetail } from '@/hooks/use-order';
 import { format } from 'date-fns';
 import { vi } from 'date-fns/locale';
+import axios from '@/services/axios';
+import { useToast } from '@/contexts/ToastContext';
 
 import { OrderType } from '@/types';
 
@@ -26,6 +28,42 @@ export default function OrderDetailPage() {
   const id = params.id as string;
   const router = useRouter();
   const { order, isLoading } = useOrderDetail(id);
+  const { toast } = useToast();
+  const [isPaying, setIsPaying] = React.useState(false);
+
+  const handlePayNow = async () => {
+    try {
+      setIsPaying(true);
+      
+      // 1. Cập nhật phương thức thanh toán sang VNPAY nếu chưa phải
+      if (order?.paymentMethod !== 'VNPAY') {
+        await axios.patch(`/orders/${id}/payment-method`, { paymentMethod: 'VNPAY' });
+      }
+
+      // 2. Tạo link thanh toán VNPAY
+      const response = await axios.post('/payment/vnpay/create', { orderId: id });
+      const { paymentUrl } = response.data.data;
+
+      toast({ 
+        title: 'Đang chuyển hướng', 
+        message: 'Đang kết nối tới cổng thanh toán VNPay...', 
+        variant: 'success' 
+      });
+
+      // 3. Chuyển hướng
+      setTimeout(() => {
+        window.location.href = paymentUrl;
+      }, 800);
+    } catch (error: any) {
+      console.error('Pay now error:', error);
+      toast({ 
+        title: 'Lỗi', 
+        message: error.response?.data?.error || 'Không thể khởi tạo thanh toán', 
+        variant: 'error' 
+      });
+      setIsPaying(false);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -185,6 +223,23 @@ export default function OrderDetailPage() {
                     {order.paymentStatus === 'PAID' ? 'Đã thanh toán' : 'Chờ thanh toán'}
                   </p>
                 </div>
+
+                {order.paymentStatus !== 'PAID' && order.status !== 'CANCELLED' && (
+                  <button
+                    onClick={handlePayNow}
+                    disabled={isPaying}
+                    className="w-full mt-4 bg-slate-900 text-white py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-800 transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    {isPaying ? (
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <>
+                        <CreditCard className="w-4 h-4 text-accent" />
+                        Thanh toán ngay bằng VNPAY
+                      </>
+                    )}
+                  </button>
+                )}
               </div>
             </div>
           </div>

@@ -17,7 +17,7 @@ export const orderService = {
   },
 
   updatePaymentStatus: (id: string, paymentStatus: PaymentStatus): Promise<AxiosResponse<ApiResponse<Order>>> => {
-    return axios.put(`/orders/${id}/payment-status`, { paymentStatus });
+    return axios.put(`/orders/${id}/payment`, { paymentStatus });
   },
 
   deleteOrder: (id: string): Promise<AxiosResponse<ApiResponse<any>>> => {

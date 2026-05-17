@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useBanner, useBannerActions } from "@/hooks/use-banner";
 import { PageHeader } from "@/components/ui/PageHeader";
 import {
@@ -47,43 +47,35 @@ export default function BannerModule() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<{ id: string, name: string } | null>(null);
 
-  // Quick Create State
   const [isAdding, setIsAdding] = useState(false);
   const [newName, setNewName] = useState("");
   const [newItems, setNewItems] = useState<BannerType.BannerItem[]>([]);
-  const [isUploading, setIsUploading] = useState(false);
 
-  // Local Edits State (Drafts)
   const [localEdits, setLocalEdits] = useState<Record<string, BannerType.BannerSlider>>({});
+  const [pendingFiles, setPendingFiles] = useState<Record<string, { file: File, preview: string }[]>>({});
 
-  // Local Pending Files State
-  const [pendingFiles, setPendingFiles] = useState<Record<string, {file: File, preview: string}[]>>({});
+  const { toast } = useToast();
 
   const handleToggleStatus = async (slider: BannerType.BannerSlider) => {
     await updateBanner({ id: slider.id, data: { isActive: !slider.isActive } });
   };
-
-  const { toast } = useToast();
 
   const handleCreateSlider = async () => {
     if (!newName.trim()) {
       toast({ title: "Thiếu thông tin", message: "Vui lòng nhập tên cho Banner", variant: "error" });
       return;
     }
-
     if (newItems.length === 0) {
       toast({ title: "Thiếu hình ảnh", message: "Banner cần ít nhất một hình ảnh", variant: "error" });
       return;
     }
 
-    // Capture data
     const dataToSave = {
       name: newName,
       items: [...newItems],
       pending: [...(pendingFiles["new"] || [])]
     };
 
-    // Close and reset immediately
     setIsAdding(false);
     setExpandedId(null);
     setNewName("");
@@ -96,7 +88,6 @@ export default function BannerModule() {
 
     toast({ title: "Đang xử lý", message: "Đang tạo Banner mới...", variant: "tip" });
 
-    // Background process
     (async () => {
       try {
         let uploadedUrls: string[] = [];
@@ -118,7 +109,7 @@ export default function BannerModule() {
           items: finalItems,
           isActive: true
         });
-        
+
         toast({ title: "Thành công", message: "Đã tạo Banner mới", variant: "success" });
       } catch (error) {
         console.error("Create error:", error);
@@ -131,14 +122,12 @@ export default function BannerModule() {
     const draft = localEdits[sliderId];
     if (!draft) return;
 
-    // Capture data
     const dataToSave = {
       sliderId,
       draft: { ...draft },
       pending: [...(pendingFiles[sliderId] || [])]
     };
 
-    // Close immediately
     setExpandedId(null);
     const newEdits = { ...localEdits };
     delete newEdits[sliderId];
@@ -151,7 +140,6 @@ export default function BannerModule() {
 
     toast({ title: "Đang xử lý", message: "Đang cập nhật Banner...", variant: "tip" });
 
-    // Background process
     (async () => {
       try {
         let uploadedUrls: string[] = [];
@@ -197,7 +185,7 @@ export default function BannerModule() {
   const handleUploadImages = async (files: FileList, isNew: boolean, slider: BannerType.BannerSlider) => {
     const fileArray = Array.from(files);
     const sliderId = isNew ? "new" : slider.id;
-    
+
     const newPendingItems = fileArray.map(file => ({
       file,
       preview: URL.createObjectURL(file)
@@ -253,7 +241,6 @@ export default function BannerModule() {
       />
 
       <div className="grid grid-cols-1 gap-6">
-        {/* Quick Create Row */}
         {isAdding && (
           <div className="bg-white dark:bg-zinc-900 border border-violet-200 dark:border-violet-500/30 rounded-3xl overflow-hidden shadow-xl shadow-violet-500/10 animate-in fade-in slide-in-from-top-4 duration-500">
             <div className="p-6 flex flex-col md:flex-row items-center gap-6">
@@ -301,65 +288,24 @@ export default function BannerModule() {
 
             {expandedId === "new-slider" && (
               <div className="px-6 pb-8 border-t border-zinc-50 dark:border-zinc-800 pt-8 bg-zinc-50/30 dark:bg-zinc-950/20">
-                <div className="">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-4 block">Tải ảnh Banner lên</label>
-                  <ImagePicker
-                    images={newItems.map(item => item.image)}
-                    onUpload={(files) => handleUploadImages(files, true, {} as any)}
-                    onRemove={(index) => handleRemoveImage(index, true, {} as any)}
-                    isLoading={isUploading}
-                    maxFiles={10}
-                    className="mb-8"
-                    imageClassName="h-[350px] !aspect-auto"
-                  />
+                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-4 block">Tải ảnh Banner lên</label>
+                <ImagePicker
+                  images={newItems.map(item => item.image)}
+                  onUpload={(files) => handleUploadImages(files, true, {} as any)}
+                  onRemove={(index) => handleRemoveImage(index, true, {} as any)}
+                  isLoading={false}
+                  maxFiles={10}
+                  className="mb-8"
+                  imageClassName="h-[350px] !aspect-auto"
+                />
 
-                  {newItems.length > 0 && (
-                    <div className="space-y-4">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-2 block">Cấu hình nội dung (Tùy chọn)</label>
-                      {newItems.map((item, idx) => (
-                        <div key={idx} className="flex items-center gap-4 bg-white dark:bg-zinc-900 p-4 rounded-2xl border border-zinc-100 dark:border-zinc-800">
-                          <div className="w-16 h-10 rounded-lg overflow-hidden flex-shrink-0">
-                            <img src={item.image} className="w-full h-full object-cover" />
-                          </div>
-                          <input
-                            type="text"
-                            value={item.title}
-                            onChange={(e) => {
-                              const updated = [...newItems];
-                              updated[idx].title = e.target.value;
-                              setNewItems(updated);
-                            }}
-                            placeholder="Tiêu đề..."
-                            className="flex-1 bg-transparent border-none text-sm font-bold focus:ring-0 min-w-0"
-                          />
-                          <input
-                            type="text"
-                            value={item.subtitle || ""}
-                            onChange={(e) => {
-                              const updated = [...newItems];
-                              updated[idx].subtitle = e.target.value;
-                              setNewItems(updated);
-                            }}
-                            placeholder="Tiêu đề phụ..."
-                            className="flex-1 bg-transparent border-none text-xs text-zinc-400 focus:ring-0 min-w-0"
-                          />
-                          <div className="flex items-center gap-2">
-                            <input
-                              type="color"
-                              value={item.accentColor}
-                              onChange={(e) => {
-                                const updated = [...newItems];
-                                updated[idx].accentColor = e.target.value;
-                                setNewItems(updated);
-                              }}
-                              className="w-6 h-6 p-0 border-none bg-transparent cursor-pointer"
-                            />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                {newItems.length > 0 && (
+                  <BannerItemConfig
+                    items={newItems}
+                    onChange={setNewItems}
+                    label="Cấu hình nội dung (Tùy chọn)"
+                  />
+                )}
               </div>
             )}
           </div>
@@ -465,68 +411,23 @@ export default function BannerModule() {
 
               {expandedId === slider.id && (
                 <div className="px-6 pb-8 border-t border-zinc-50 dark:border-zinc-800 pt-8 bg-zinc-50/30 dark:bg-zinc-950/20">
-                  <div className="">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-4 block">Quản lý ảnh Banner</label>
-                    <ImagePicker
-                      images={currentSlider.items?.map(item => item.image) || []}
-                      onUpload={(files) => handleUploadImages(files, false, slider)}
-                      onRemove={(index) => handleRemoveImage(index, false, slider)}
-                      isLoading={isUpdating || isUploading}
-                      maxFiles={10}
-                      className="mb-8"
-                      imageClassName="h-[350px] !aspect-auto"
-                    />
+                  <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-4 block">Quản lý ảnh Banner</label>
+                  <ImagePicker
+                    images={currentSlider.items?.map(item => item.image) || []}
+                    onUpload={(files) => handleUploadImages(files, false, slider)}
+                    onRemove={(index) => handleRemoveImage(index, false, slider)}
+                    isLoading={isUpdating}
+                    maxFiles={10}
+                    className="mb-8"
+                    imageClassName="h-[350px] !aspect-auto"
+                  />
 
-                    {currentSlider.items && currentSlider.items.length > 0 && (
-                      <div className="space-y-4">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-2 block">Cấu hình nội dung</label>
-                        {currentSlider.items.map((item, idx) => (
-                          <div key={idx} className="flex items-center gap-4 bg-white dark:bg-zinc-900 p-4 rounded-2xl border border-zinc-100 dark:border-zinc-800 group/edit">
-                            <div className="w-16 h-10 rounded-lg overflow-hidden flex-shrink-0">
-                              <img src={item.image} className="w-full h-full object-cover" />
-                            </div>
-                            <input
-                              type="text"
-                              value={item.title}
-                              onChange={(e) => {
-                                const updatedItems = [...(currentSlider.items || [])];
-                                updatedItems[idx] = { ...updatedItems[idx], title: e.target.value };
-                                updateDraft(slider.id, slider, { items: updatedItems });
-                              }}
-                              placeholder="Tiêu đề..."
-                              className="flex-1 bg-transparent border-none text-sm font-bold focus:ring-0 min-w-0"
-                            />
-                            <input
-                              type="text"
-                              value={item.subtitle || ""}
-                              onChange={(e) => {
-                                const updatedItems = [...(currentSlider.items || [])];
-                                updatedItems[idx] = { ...updatedItems[idx], subtitle: e.target.value };
-                                updateDraft(slider.id, slider, { items: updatedItems });
-                              }}
-                              placeholder="Tiêu đề phụ..."
-                              className="flex-1 bg-transparent border-none text-xs text-zinc-400 focus:ring-0 min-w-0"
-                            />
-                            <div className="flex items-center gap-2">
-                              <input
-                                type="color"
-                                value={item.accentColor}
-                                onChange={(e) => {
-                                  const updatedItems = [...(currentSlider.items || [])];
-                                  updatedItems[idx] = { ...updatedItems[idx], accentColor: e.target.value };
-                                  updateDraft(slider.id, slider, { items: updatedItems });
-                                }}
-                                className="w-6 h-6 p-0 border-none bg-transparent cursor-pointer"
-                              />
-                              <button className="p-2 text-zinc-300 hover:text-zinc-600 dark:hover:text-zinc-400 transition-colors">
-                                <Edit2 className="w-4 h-4" />
-                              </button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+                  {currentSlider.items && currentSlider.items.length > 0 && (
+                    <BannerItemConfig
+                      items={currentSlider.items}
+                      onChange={(newItems) => updateDraft(slider.id, slider, { items: newItems })}
+                    />
+                  )}
                 </div>
               )}
             </div>
@@ -544,7 +445,6 @@ export default function BannerModule() {
         )}
       </div>
 
-      {/* Delete Confirmation Modal */}
       {deleteConfirmId && (
         <Modal
           onClose={() => setDeleteConfirmId(null)}
@@ -580,6 +480,77 @@ export default function BannerModule() {
           </div>
         </Modal>
       )}
+    </div>
+  );
+}
+
+interface BannerItemConfigProps {
+  items: BannerType.BannerItem[];
+  onChange: (newItems: BannerType.BannerItem[]) => void;
+  label?: string;
+}
+
+function BannerItemConfig({
+  items,
+  onChange,
+  label = "Cấu hình nội dung",
+}: BannerItemConfigProps) {
+  const updateItem = (index: number, updates: Partial<BannerType.BannerItem>) => {
+    const newItems = [...items];
+    newItems[index] = { ...newItems[index], ...updates };
+    onChange(newItems);
+  };
+
+  return (
+    <div className="space-y-4">
+      <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-2 block">
+        {label}
+      </label>
+
+      {items.map((item, idx) => (
+        <div
+          key={idx}
+          className="flex items-start gap-4 bg-white dark:bg-zinc-900 p-4 rounded-2xl border border-zinc-100 dark:border-zinc-800 group/edit"
+        >
+          <div className="w-32 h-20 rounded-lg overflow-hidden flex-shrink-0 mt-0.5">
+            <img
+              src={item.image}
+              alt="banner preview"
+              className="w-full h-full object-stretch"
+            />
+          </div>
+
+          <div className="flex-1 space-y-2">
+            <input
+              type="text"
+              value={item.title}
+              onChange={(e) => updateItem(idx, { title: e.target.value })}
+              placeholder="Tiêu đề chính..."
+              className="w-full bg-transparent border border-zinc-200 dark:border-zinc-700 focus:border-violet-400 rounded-xl px-4 py-3 text-sm font-bold focus:ring-0 h-11"
+            />
+
+            <input
+              type="text"
+              value={item.subtitle || ""}
+              onChange={(e) => updateItem(idx, { subtitle: e.target.value })}
+              placeholder="Tiêu đề phụ..."
+              className="w-full bg-transparent border border-zinc-200 dark:border-zinc-700 focus:border-violet-400 rounded-xl px-4 py-3 text-xs text-zinc-400 focus:ring-0 h-11"
+            />
+          </div>
+
+          <div className="flex flex-col items-center gap-3 pt-1">
+            <input
+              type="color"
+              value={item.accentColor}
+              onChange={(e) => updateItem(idx, { accentColor: e.target.value })}
+              className="w-8 h-8 p-0 border-2 border-white dark:border-zinc-800 rounded-lg cursor-pointer shadow-sm"
+            />
+            <button className="p-2 text-zinc-300 hover:text-zinc-600 dark:hover:text-zinc-400 transition-colors opacity-0 group-hover/edit:opacity-100">
+              <Edit2 className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      ))}
     </div>
   );
 }

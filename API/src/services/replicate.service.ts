@@ -19,6 +19,8 @@ export class ReplicateService {
     try {
       console.log('🚀 Starting Virtual Try-on process...');
 
+      /* 
+      // BACKUP: IDM-VTON Model (cuuupid/idm-vton)
       const output = await replicate.run(
         "cuuupid/idm-vton:0513734a452173b8173e907e3a59d19a36266e55b48528559432bd21c7d7e985",
         {
@@ -26,12 +28,24 @@ export class ReplicateService {
             human_img: humanImage,
             garm_img: garmentImage,
             garment_des: description,
+            category: category,
             crop: true,
             seed: 42,
             steps: 30,
-            category: category,
             force_dc: false,
             mask_only: false
+          }
+        }
+      );
+      */
+
+      const output = await replicate.run(
+        "subhash25rawat/flux-vton:a02643ce418c0e12bad371c4adbfaec0dd1cb34b034ef37650ef205f92ad6199",
+        {
+          input: {
+            image: humanImage,
+            garment: garmentImage,
+            part: category
           }
         }
       );

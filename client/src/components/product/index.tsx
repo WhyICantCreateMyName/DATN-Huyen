@@ -15,6 +15,8 @@ import { Pagination } from "@/components/ui/Pagination";
 export default function ProductsComponent() {
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [minPrice, setMinPrice] = useState<string>("");
+  const [maxPrice, setMaxPrice] = useState<string>("");
   const [sort, setSort] = useState("newest");
   const [page, setPage] = useState(1);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
@@ -24,6 +26,8 @@ export default function ProductsComponent() {
   const { products, pagination, isLoading } = useProduct({
     search,
     categoryId: selectedCategory || undefined,
+    minPrice: minPrice || undefined,
+    maxPrice: maxPrice || undefined,
     sort,
     page,
     limit: 12
@@ -99,6 +103,61 @@ export default function ProductsComponent() {
                 ))}
               </div>
             </div>
+            
+            {/* Price Range */}
+            <div className="space-y-4">
+              <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400">Khoảng giá (VNĐ)</h4>
+              
+              {/* Quick Price Filters */}
+              <div className="flex flex-col gap-2 mb-6">
+                {[
+                  { label: 'Tất cả giá', min: '', max: '' },
+                  { label: 'Dưới 200.000đ', min: '0', max: '200000' },
+                  { label: '200.000đ - 500.000đ', min: '200000', max: '500000' },
+                  { label: '500.000đ - 1.000.000đ', min: '500000', max: '1000000' },
+                  { label: 'Trên 1.000.000đ', min: '1000000', max: '' },
+                ].map((range, idx) => {
+                  const isActive = minPrice === range.min && maxPrice === range.max;
+                  return (
+                    <button
+                      key={idx}
+                      onClick={() => {
+                        setMinPrice(range.min);
+                        setMaxPrice(range.max);
+                        setPage(1);
+                      }}
+                      className={cn(
+                        "text-left py-2 px-4 rounded-xl text-[11px] font-bold transition-all",
+                        isActive ? "bg-slate-100 text-slate-900 ring-1 ring-slate-200" : "text-slate-500 hover:bg-slate-50"
+                      )}
+                    >
+                      {range.label}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="space-y-3">
+                <div className="relative">
+                  <input
+                    type="number"
+                    placeholder="Từ..."
+                    value={minPrice}
+                    onChange={(e) => { setMinPrice(e.target.value); setPage(1); }}
+                    className="w-full bg-slate-50 border-none rounded-xl py-3 px-4 text-xs font-bold focus:ring-2 focus:ring-indigo-600/20 transition-all"
+                  />
+                </div>
+                <div className="relative">
+                  <input
+                    type="number"
+                    placeholder="Đến..."
+                    value={maxPrice}
+                    onChange={(e) => { setMaxPrice(e.target.value); setPage(1); }}
+                    className="w-full bg-slate-50 border-none rounded-xl py-3 px-4 text-xs font-bold focus:ring-2 focus:ring-indigo-600/20 transition-all"
+                  />
+                </div>
+              </div>
+            </div>
           </aside>
 
           {/* Main Content */}
@@ -167,7 +226,13 @@ export default function ProductsComponent() {
                 <h3 className="text-xl font-black text-slate-900 uppercase">Không tìm thấy sản phẩm</h3>
                 <p className="text-slate-500 font-medium mt-2">Thử thay đổi bộ lọc hoặc từ khóa tìm kiếm của bạn.</p>
                 <button
-                  onClick={() => { setSearch(""); setSelectedCategory(null); setPage(1); }}
+                  onClick={() => { 
+                    setSearch(""); 
+                    setSelectedCategory(null); 
+                    setMinPrice("");
+                    setMaxPrice("");
+                    setPage(1); 
+                  }}
                   className="mt-8 text-xs font-black uppercase tracking-widest border-b-2 border-slate-900 pb-1"
                 >
                   Xóa tất cả bộ lọc
@@ -228,6 +293,56 @@ export default function ProductsComponent() {
                       {cat.name}
                     </button>
                   ))}
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400">Khoảng giá (VNĐ)</h4>
+                
+                {/* Quick Price Filters */}
+                <div className="grid grid-cols-2 gap-3 mb-6">
+                  {[
+                    { label: 'Tất cả giá', min: '', max: '' },
+                    { label: 'Dưới 200k', min: '0', max: '200000' },
+                    { label: '200k - 500k', min: '200000', max: '500000' },
+                    { label: '500k - 1tr', min: '500000', max: '1000000' },
+                    { label: 'Trên 1tr', min: '1000000', max: '' },
+                  ].map((range, idx) => {
+                    const isActive = minPrice === range.min && maxPrice === range.max;
+                    return (
+                      <button
+                        key={idx}
+                        onClick={() => {
+                          setMinPrice(range.min);
+                          setMaxPrice(range.max);
+                          setPage(1);
+                        }}
+                        className={cn(
+                          "py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all text-center",
+                          isActive ? "bg-slate-900 text-white" : "bg-slate-50 text-slate-500"
+                        )}
+                      >
+                        {range.label}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <input
+                    type="number"
+                    placeholder="Từ..."
+                    value={minPrice}
+                    onChange={(e) => { setMinPrice(e.target.value); setPage(1); }}
+                    className="w-full bg-slate-50 border-none rounded-2xl py-5 px-6 text-sm font-bold focus:ring-0"
+                  />
+                  <input
+                    type="number"
+                    placeholder="Đến..."
+                    value={maxPrice}
+                    onChange={(e) => { setMaxPrice(e.target.value); setPage(1); }}
+                    className="w-full bg-slate-50 border-none rounded-2xl py-5 px-6 text-sm font-bold focus:ring-0"
+                  />
                 </div>
               </div>
             </div>

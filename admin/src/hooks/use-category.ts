@@ -46,10 +46,11 @@ export const useCategoryActions = () => {
           variant: "success"
         });
         return result.status;
-      } catch (err) {
+      } catch (err: any) {
+        const message = err.response?.data?.error || "Không thể tạo danh mục";
         toast({
           title: "Lỗi",
-          message: "Không thể tạo danh mục",
+          message: message,
           variant: "error"
         });
         throw err;
@@ -69,10 +70,11 @@ export const useCategoryActions = () => {
           variant: "success"
         });
         return result.status;
-      } catch (err) {
+      } catch (err: any) {
+        const message = err.response?.data?.error || "Không thể cập nhật danh mục";
         toast({
           title: "Lỗi",
-          message: "Không thể cập nhật danh mục",
+          message: message,
           variant: "error"
         });
         throw err;
@@ -92,10 +94,11 @@ export const useCategoryActions = () => {
           variant: "success"
         });
         return result.status;
-      } catch (err) {
+      } catch (err: any) {
+        const message = err.response?.data?.error || "Không thể xóa danh mục";
         toast({
           title: "Lỗi",
-          message: "Không thể xóa danh mục",
+          message: message,
           variant: "error"
         });
         throw err;

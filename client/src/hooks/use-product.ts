@@ -5,11 +5,18 @@ import { useDebounce } from './use-debounce';
 
 export const useProduct = (params?: QueryParams) => {
   const debouncedSearch = useDebounce(params?.search, 500);
+  const debouncedMinPrice = useDebounce(params?.minPrice, 500);
+  const debouncedMaxPrice = useDebounce(params?.maxPrice, 500);
 
   const { data, error, isLoading, mutate } = useSWR(
-    ['products', { ...params, search: debouncedSearch }],
+    ['products', { ...params, search: debouncedSearch, minPrice: debouncedMinPrice, maxPrice: debouncedMaxPrice }],
     async () => {
-      const result = await productService.getProducts({ ...params, search: debouncedSearch });
+      const result = await productService.getProducts({
+        ...params,
+        search: debouncedSearch,
+        minPrice: debouncedMinPrice,
+        maxPrice: debouncedMaxPrice
+      });
       return result.data.data as PaginatedResponse<ProductType.Product>;
     },
     {

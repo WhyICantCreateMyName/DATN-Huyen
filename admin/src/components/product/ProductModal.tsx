@@ -42,7 +42,7 @@ export function ProductFormModule({ initialData, isEdit = false, onClose, onSucc
   const [categoryId, setCategoryId] = useState("");
   const [description, setDescription] = useState("");
   const [existingImages, setExistingImages] = useState<string[]>([]);
-  const [newImages, setNewImages] = useState<{file: File, preview: string}[]>([]);
+  const [newImages, setNewImages] = useState<{ file: File, preview: string }[]>([]);
   const [selectedCollectionIds, setSelectedCollectionIds] = useState<string[]>([]);
   const [collectionSearch, setCollectionSearch] = useState("");
 
@@ -162,15 +162,15 @@ export function ProductFormModule({ initialData, isEdit = false, onClose, onSucc
         const finalImages = [...dataToSave.existingImages, ...uploadedUrls];
 
         const productData = {
-          name: dataToSave.name,
+          name: dataToSave.name.trim(),
           categoryId: dataToSave.categoryId,
           description: dataToSave.description,
           images: finalImages,
           collectionIds: dataToSave.selectedCollectionIds,
           variants: dataToSave.variants.map(v => ({
             id: v.id,
-            size: v.size,
-            color: v.color,
+            size: v.size.trim(),
+            color: v.color.trim(),
             price: parseFloat(v.price),
             stock: parseInt(v.stock)
           }))
@@ -260,7 +260,7 @@ export function ProductFormModule({ initialData, isEdit = false, onClose, onSucc
                     isLoading={isLoadingCollections}
                     placeholder="Thêm vào bộ sưu tập..."
                   />
-                  
+
                   {selectedCollectionIds.length > 0 && (
                     <div className="flex flex-wrap gap-2 pt-1">
                       {selectedCollectionIds.map(id => {

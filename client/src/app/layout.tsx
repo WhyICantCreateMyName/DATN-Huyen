@@ -15,6 +15,7 @@ import { ToastProvider } from "@/contexts/ToastContext";
 import { CartProvider } from "@/contexts/CartContext";
 import { WishlistProvider } from "@/contexts/WishlistContext";
 import FloatingChat from "@/components/chat/FloatingChat";
+import NgrokBypass from "@/components/common/NgrokBypass";
 
 export default function RootLayout({
   children,
@@ -29,6 +30,7 @@ export default function RootLayout({
           "min-h-screen bg-background text-foreground antialiased"
         )}
       >
+        <NgrokBypass />
         <ToastProvider>
           <AuthProvider>
             <CartProvider>

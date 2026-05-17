@@ -65,13 +65,13 @@ export default function UserListModule() {
         {[
           {
             label: "Admin",
-            value: (users || []).filter(u => u.role === 'ADMIN').length,
+            value: pagination?.adminCount || 0,
             icon: ShieldCheck,
             color: "bg-violet-600"
           },
           {
             label: "User",
-            value: (users || []).filter(u => u.role === 'USER').length,
+            value: pagination?.userCount || 0,
             icon: ShieldAlert,
             color: "bg-zinc-500"
           },

@@ -168,12 +168,13 @@ export default function ProfileContainer() {
 
           <div className="bg-slate-50 p-6 rounded-[2.5rem] space-y-2">
             {[
-              { icon: Package, label: 'Đơn hàng của tôi', link: '#' },
-              { icon: Settings, label: 'Cài đặt tài khoản', link: '#' },
+              { icon: Package, label: 'Đơn hàng của tôi', link: '/profile/orders' },
+              { icon: Settings, label: 'Cài đặt tài khoản', link: '/profile' },
               { icon: Heart, label: 'Sản phẩm yêu thích', link: '#wishlist' },
             ].map((item, idx) => (
               <button
                 key={idx}
+                onClick={() => router.push(item.link)}
                 className="w-full flex items-center justify-between p-4 hover:bg-white rounded-2xl transition-all group"
               >
                 <div className="flex items-center gap-4">

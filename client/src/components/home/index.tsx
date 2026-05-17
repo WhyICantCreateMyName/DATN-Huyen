@@ -4,9 +4,8 @@ import React from "react";
 import BannerSection from "@/components/home/BannerSection";
 import ProductCard from "@/components/product/ProductCard";
 import { ArrowRight, ShieldCheck, Sparkles, Zap } from "lucide-react";
-import useSWR from "swr";
 import { productService } from "@/services/product.service";
-
+import Link from "next/link";
 import { useProduct } from "@/hooks/use-product";
 
 export default function HomeComponent() {
@@ -23,9 +22,9 @@ export default function HomeComponent() {
             <span className="text-accent font-black text-xs uppercase tracking-[0.4em] mb-4 block">Most Wanted</span>
             <h2 className="text-5xl md:text-7xl font-black tracking-tighter text-slate-900 leading-tight">BEST <br /> SELLERS</h2>
           </div>
-          <button className="group flex items-center gap-3 text-sm font-black uppercase tracking-widest border-b-2 border-slate-900 pb-1 transition-all hover:gap-5">
+          <Link href={"/products"} className="group flex items-center gap-3 text-sm font-black uppercase tracking-widest border-b-2 border-slate-900 pb-1 transition-all hover:gap-5">
             Xem tất cả <ArrowRight className="w-5 h-5 text-accent" />
-          </button>
+          </Link>
         </div>
 
         {productsLoading ? (

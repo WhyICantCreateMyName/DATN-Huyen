@@ -6,8 +6,32 @@ import { authenticate, AuthRequest } from '../middleware/auth.middleware';
 import { successResponse, errorResponse, ErrorResponses } from '../utils/response';
 import { ReplicateService } from '../services/replicate.service';
 import { getBaseUrl, toAbsoluteUrls } from '../utils/url';
+import fs from 'fs';
 
 const router = Router();
+
+// Helper to upload a file to a temporary public hosting (litterbox.catbox.moe)
+// Files will be automatically deleted after 1 hour
+async function uploadToPublic(filePath: string): Promise<string> {
+  try {
+    const fileBuffer = fs.readFileSync(filePath);
+    const formData = new FormData();
+    formData.append('reqtype', 'fileupload');
+    formData.append('time', '1h');
+    formData.append('fileToUpload', new Blob([fileBuffer]), path.basename(filePath));
+
+    const response = await fetch('https://litterbox.catbox.moe/resources/internals/api.php', {
+      method: 'POST',
+      body: formData
+    });
+
+    if (!response.ok) throw new Error('Upload failed');
+    return await response.text();
+  } catch (error) {
+    console.error('Temporary public upload error:', error);
+    return '';
+  }
+}
 
 // Configure multer for VTO (similar to upload controller)
 const storage = multer.diskStorage({
@@ -79,13 +103,30 @@ router.post('/', authenticate, upload.single('humanImage'), async (req: AuthRequ
       finalGarmentUrl = finalGarmentUrl.replace(/http:\/\/localhost:\d+/, process.env.BASE_URL);
     }
 
-    console.log('--- [VTO DEBUG] Sending to Replicate ---');
-    console.log('Final Human Image URL:', finalHumanImageUrl);
-    console.log('Final Garment Image URL:', finalGarmentUrl);
-    console.log('Description:', description || 'clothing item');
-    console.log('Category:', category || 'upper_body');
+    // CRITICAL: Upload to public hosting to bypass ngrok issues
+    console.log('🔄 Uploading images to public storage for Replicate access...');
+    
+    let publicHumanUrl = finalHumanImageUrl;
+    if (humanImageFile) {
+      const uploaded = await uploadToPublic(humanImageFile.path);
+      if (uploaded) publicHumanUrl = uploaded;
+    }
 
-    const result = await ReplicateService.virtualTryOn(finalHumanImageUrl, finalGarmentUrl, description, category);
+    let publicGarmentUrl = finalGarmentUrl;
+    if (finalGarmentUrl.includes('/api/uploads/')) {
+      const fileName = finalGarmentUrl.split('/api/uploads/')[1];
+      const localPath = path.join('public/uploads', fileName);
+      if (fs.existsSync(localPath)) {
+        const uploaded = await uploadToPublic(localPath);
+        if (uploaded) publicGarmentUrl = uploaded;
+      }
+    }
+
+    console.log('--- [VTO DEBUG] Sending to Replicate ---');
+    console.log('Public Human Image:', publicHumanUrl);
+    console.log('Public Garment Image:', publicGarmentUrl);
+
+    const result = await ReplicateService.virtualTryOn(publicHumanUrl, publicGarmentUrl, description, category);
 
     console.log('--- [VTO DEBUG] Success ---');
     console.log('Generated Result URL (AI):', result ? ((result as string).length > 100 ? (result as string).substring(0, 100) + '...' : result) : 'NULL');
